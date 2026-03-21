@@ -233,6 +233,20 @@ export default function Sales() {
           <Button className="w-full" onClick={applyDiscount}>Apply</Button>
         </DialogContent>
       </Dialog>
+
+      <BarcodeScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={(code) => {
+          const found = products.find(p => p.sku === code);
+          if (found) {
+            addToCart(found);
+            toast.success(`Added: ${found.name}`);
+          } else {
+            toast.error(`No product with SKU "${code}"`);
+          }
+        }}
+      />
     </div>
   );
 }

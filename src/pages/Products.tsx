@@ -156,6 +156,24 @@ export default function Products() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <BarcodeScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={(code) => {
+          // Look up product by SKU, or pre-fill SKU in new product form
+          const found = products.find(p => p.sku === code);
+          if (found) {
+            openEdit(found);
+            toast.info(`Found: ${found.name}`);
+          } else {
+            setEditing(null);
+            setForm({ name: "", sku: code, category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail" });
+            setDialogOpen(true);
+            toast.info(`SKU "${code}" not found — add new product`);
+          }
+        }}
+      />
     </div>
   );
 }
