@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Edit2, Trash2 } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, ScanLine } from "lucide-react";
 import { toast } from "sonner";
 import type { Product } from "@/lib/supabase-helpers";
+import BarcodeScanner from "@/components/BarcodeScanner";
 
 const categories = ["General", "Beverages", "Food", "Electronics", "Clothing", "Household", "Other"];
 const units = ["piece", "kg", "litre", "bottle", "pack", "carton", "dozen"];
