@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Edit2, Trash2 } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, ScanLine } from "lucide-react";
 import { toast } from "sonner";
 import type { Product } from "@/lib/supabase-helpers";
+import BarcodeScanner from "@/components/BarcodeScanner";
 
 const categories = ["General", "Beverages", "Food", "Electronics", "Clothing", "Household", "Other"];
 const units = ["piece", "kg", "litre", "bottle", "pack", "carton", "dozen"];
@@ -21,6 +22,7 @@ export default function Products() {
   const [filterCat, setFilterCat] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [form, setForm] = useState({
     name: "", sku: "", category: "General", cost_price: "", selling_price: "",
     unit: "piece", reorder_threshold: "5", business_type: "retail"
@@ -82,6 +84,7 @@ export default function Products() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input className="input-dark pl-9 h-9" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
+        <Button size="sm" variant="outline" onClick={() => setScannerOpen(true)}><ScanLine className="w-4 h-4" /></Button>
         <Button size="sm" onClick={openNew}><Plus className="w-4 h-4" /></Button>
       </div>
 
@@ -153,6 +156,24 @@ export default function Products() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <BarcodeScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={(code) => {
+          // Look up product by SKU, or pre-fill SKU in new product form
+          const found = products.find(p => p.sku === code);
+          if (found) {
+            openEdit(found);
+            toast.info(`Found: ${found.name}`);
+          } else {
+            setEditing(null);
+            setForm({ name: "", sku: code, category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail" });
+            setDialogOpen(true);
+            toast.info(`SKU "${code}" not found — add new product`);
+          }
+        }}
+      />
     </div>
   );
 }

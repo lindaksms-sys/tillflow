@@ -5,10 +5,11 @@ import PageHeader from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Plus, Minus, ShoppingCart, X, CreditCard, Banknote, Smartphone, RotateCcw } from "lucide-react";
+import { Search, Plus, Minus, ShoppingCart, X, CreditCard, Banknote, Smartphone, RotateCcw, ScanLine } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import type { Product, CartItem } from "@/lib/supabase-helpers";
+import BarcodeScanner from "@/components/BarcodeScanner";
 
 export default function Sales() {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ export default function Sales() {
   const [salesHistory, setSalesHistory] = useState<any[]>([]);
   const [discountDialog, setDiscountDialog] = useState<{ index: number } | null>(null);
   const [discountValue, setDiscountValue] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState("");
 
   useEffect(() => { if (user) { loadProducts(); loadHistory(); } }, [user]);
@@ -135,9 +137,12 @@ export default function Sales() {
 
       {tab === "pos" ? (
         <>
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input className="input-dark pl-9 h-9" placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)} />
+          <div className="flex gap-2 mb-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input className="input-dark pl-9 h-9" placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <Button size="sm" variant="outline" onClick={() => setScannerOpen(true)}><ScanLine className="w-4 h-4" /></Button>
           </div>
 
           {search && (
@@ -228,6 +233,20 @@ export default function Sales() {
           <Button className="w-full" onClick={applyDiscount}>Apply</Button>
         </DialogContent>
       </Dialog>
+
+      <BarcodeScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={(code) => {
+          const found = products.find(p => p.sku === code);
+          if (found) {
+            addToCart(found);
+            toast.success(`Added: ${found.name}`);
+          } else {
+            toast.error(`No product with SKU "${code}"`);
+          }
+        }}
+      />
     </div>
   );
 }
