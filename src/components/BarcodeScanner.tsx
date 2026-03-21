@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { BrowserMultiFormatReader } from "@zxing/browser";
+import { useEffect, useRef } from "react";
+import { Html5Qrcode } from "html5-qrcode";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScanLine, X } from "lucide-react";
@@ -11,42 +11,51 @@ interface BarcodeScannerProps {
 }
 
 export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScannerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
-  const [error, setError] = useState("");
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const isScanningRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
 
-    const reader = new BrowserMultiFormatReader();
-    readerRef.current = reader;
-    setError("");
+    let cancelled = false;
 
-    const start = async () => {
+    const startScanner = async () => {
+      // Small delay to ensure the DOM element is mounted
+      await new Promise((r) => setTimeout(r, 300));
+      if (cancelled) return;
+
+      const html5QrCode = new Html5Qrcode("barcode-reader");
+      scannerRef.current = html5QrCode;
+
       try {
-        await reader.decodeFromConstraints(
-          { video: { facingMode: { ideal: "environment" } } },
-          videoRef.current!,
-          (result) => {
-            if (result) {
-              onScan(result.getText());
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 150 } },
+          (decodedText) => {
+            if (isScanningRef.current) return;
+            isScanningRef.current = true;
+            onScan(decodedText);
+            html5QrCode.stop().then(() => {
+              scannerRef.current = null;
+              isScanningRef.current = false;
               onClose();
-            }
-          }
+            });
+          },
+          undefined
         );
-      } catch (e: any) {
-        setError(e.message || "Camera access denied");
+      } catch (err) {
+        console.error("Scanner start error:", err);
       }
     };
 
-    start();
+    startScanner();
 
     return () => {
-      if (readerRef.current) {
-        // Stop all tracks on the video element
-        const stream = videoRef.current?.srcObject as MediaStream;
-        stream?.getTracks().forEach(t => t.stop());
-        readerRef.current = null;
+      cancelled = true;
+      isScanningRef.current = false;
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+        scannerRef.current = null;
       }
     };
   }, [open]);
@@ -60,23 +69,7 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
           </DialogTitle>
         </DialogHeader>
 
-        <div className="relative aspect-[4/3] bg-black">
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover"
-            muted
-            playsInline
-          />
-          {/* Scan overlay */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-3/5 h-1/3 border-2 border-primary/60 rounded-lg" />
-          </div>
-          {error && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-              <p className="text-sm text-destructive text-center px-4">{error}</p>
-            </div>
-          )}
-        </div>
+        <div id="barcode-reader" className="min-h-64 w-full" />
 
         <div className="p-4 pt-2">
           <Button variant="outline" className="w-full" onClick={onClose}>
