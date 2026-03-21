@@ -21,6 +21,7 @@ export default function Sales() {
   const [salesHistory, setSalesHistory] = useState<any[]>([]);
   const [discountDialog, setDiscountDialog] = useState<{ index: number } | null>(null);
   const [discountValue, setDiscountValue] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState("");
 
   useEffect(() => { if (user) { loadProducts(); loadHistory(); } }, [user]);
