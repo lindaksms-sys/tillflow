@@ -22,6 +22,7 @@ export default function Products() {
   const [filterCat, setFilterCat] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [form, setForm] = useState({
     name: "", sku: "", category: "General", cost_price: "", selling_price: "",
     unit: "piece", reorder_threshold: "5", business_type: "retail"
