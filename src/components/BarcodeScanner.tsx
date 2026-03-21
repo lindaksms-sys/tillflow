@@ -24,23 +24,16 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
 
     const start = async () => {
       try {
-        const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-        // Prefer back camera
-        const backCam = devices.find(d => /back|rear|environment/i.test(d.label));
-        const deviceId = backCam?.deviceId || devices[0]?.deviceId;
-
-        if (!deviceId) {
-          setError("No camera found");
-          return;
-        }
-
-        await reader.decodeFromVideoDevice(deviceId, videoRef.current!, (result) => {
-          if (result) {
-            const code = result.getText();
-            onScan(code);
-            onClose();
+        await reader.decodeFromConstraints(
+          { video: { facingMode: { ideal: "environment" } } },
+          videoRef.current!,
+          (result) => {
+            if (result) {
+              onScan(result.getText());
+              onClose();
+            }
           }
-        });
+        );
       } catch (e: any) {
         setError(e.message || "Camera access denied");
       }
