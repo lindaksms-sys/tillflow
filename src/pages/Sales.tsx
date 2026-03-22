@@ -60,6 +60,16 @@ export default function Sales() {
   const [showManualSku, setShowManualSku] = useState(false);
   const [dateFilter, setDateFilter] = useState("");
 
+  // Receipt modal
+  const [receiptSale, setReceiptSale] = useState<any | null>(null);
+
+  // History filters
+  const [customerFilter, setCustomerFilter] = useState<string>("all");
+  const [staffFilter, setStaffFilter] = useState<string>("all");
+  const [staffMembers, setStaffMembers] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [creditCustomerSales, setCreditCustomerSales] = useState<Map<string, string[]>>(new Map());
+  const [customerSummary, setCustomerSummary] = useState<{ purchased: number; outstanding: number; paid: number } | null>(null);
+
   // Credit state
   const [creditCustomers, setCreditCustomers] = useState<CreditCustomer[]>([]);
   const [selectedCreditCustomer, setSelectedCreditCustomer] = useState<CreditCustomer | null>(null);
