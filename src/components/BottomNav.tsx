@@ -23,14 +23,14 @@ export default function BottomNav() {
 
   return (
     <nav className="bottom-nav">
-      <div className="flex justify-around items-center py-2 max-w-lg mx-auto">
+      <div className="flex overflow-x-auto scrollbar-hide items-center py-2 max-w-lg mx-auto">
         {tabs.map(({ path, icon: Icon, label }) => {
           const active = location.pathname === path;
           return (
             <button
               key={path}
               onClick={() => navigate(path)}
-              className={`flex flex-col items-center gap-0.5 px-1.5 py-1 transition-colors ${
+              className={`min-w-[56px] flex-shrink-0 flex flex-col items-center gap-0.5 px-1.5 py-1 transition-colors ${
                 active ? "text-primary" : "text-muted-foreground"
               }`}
             >
