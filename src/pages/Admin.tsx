@@ -10,6 +10,8 @@ export default function Admin() {
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => { if (verified) load(); }, [verified]);
+
   if (verifying || !verified) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -17,8 +19,6 @@ export default function Admin() {
       </div>
     );
   }
-
-  useEffect(() => { load(); }, []);
 
   const load = async () => {
     const { data } = await supabase

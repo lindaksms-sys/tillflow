@@ -85,15 +85,11 @@ export default function CreditCustomers() {
   };
 
   const loadCustomers = async () => {
-    const columns = isOwner || isManager
-      ? "*"
-      : "id, full_name, credit_limit, total_outstanding, is_active, created_at, created_by";
-    const { data } = await supabase
-      .from("credit_customers")
-      .select(columns)
-      .eq("business_id", businessId!)
-      .order("full_name");
-    setCustomers((data as CreditCustomer[]) || []);
+    const query = isOwner || isManager
+      ? supabase.from("credit_customers").select("*").eq("business_id", businessId!).order("full_name")
+      : supabase.from("credit_customers").select("id, full_name, credit_limit, total_outstanding, is_active, created_at, created_by").eq("business_id", businessId!).order("full_name");
+    const { data } = await query;
+    setCustomers((data as unknown as CreditCustomer[]) || []);
   };
 
   const loadCustomerHistory = async (customerId: string) => {
