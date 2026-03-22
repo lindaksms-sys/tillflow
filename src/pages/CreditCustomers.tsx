@@ -361,7 +361,7 @@ export default function CreditCustomers() {
           >
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{c.full_name}</p>
-              <p className="text-xs text-muted-foreground">{c.phone || "No phone"}</p>
+              {canManage && <p className="text-xs text-muted-foreground">{c.phone || "No phone"}</p>}
             </div>
             <div className="text-right shrink-0">
               <p className={`text-sm font-medium tabular-nums ${c.total_outstanding > c.credit_limit ? "text-destructive" : ""}`}>
