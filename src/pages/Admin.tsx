@@ -6,8 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { format, addDays } from "date-fns";
 
 export default function Admin() {
+  const { verified, verifying } = useRequireAdmin();
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  if (verifying || !verified) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   useEffect(() => { load(); }, []);
 

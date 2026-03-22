@@ -14,8 +14,17 @@ import { toast } from "sonner";
 import { differenceInDays } from "date-fns";
 
 export default function Settings() {
+  const { verified, verifying } = useRequireRole(['owner']);
   const { businessId, businessName, plan, trialEndsAt, refresh } = useBusiness();
   const { signOut } = useAuth();
+
+  if (verifying || !verified) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
   const [name, setName] = useState("");
   const [type, setType] = useState("retail");
   const [currency, setCurrency] = useState("USD");

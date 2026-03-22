@@ -58,7 +58,7 @@ export default function Expenses() {
     await supabase.from("expenses").insert({
       user_id: user.id, category: form.category,
       amount: Number(form.amount), note: form.note || null,
-      business_id: businessId,
+      business_id: businessId!,
     });
     toast.success("Expense logged");
     setDialogOpen(false);

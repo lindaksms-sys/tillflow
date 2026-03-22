@@ -219,7 +219,7 @@ export default function CreditCustomers() {
           </button>
           <div className="flex-1">
             <h1 className="text-lg font-bold">{selectedCustomer.full_name}</h1>
-            <p className="text-xs text-muted-foreground">{selectedCustomer.phone || "No phone"}</p>
+            {canManage && <p className="text-xs text-muted-foreground">{selectedCustomer.phone || "No phone"}</p>}
           </div>
           {canManage && (
             <Button size="sm" variant="outline" onClick={() => openEdit(selectedCustomer)}>Edit</Button>
