@@ -18,20 +18,12 @@ export default function Settings() {
   const { businessId, businessName, plan, trialEndsAt, refresh } = useBusiness();
   const { signOut } = useAuth();
 
-  if (verifying || !verified) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
   const [name, setName] = useState("");
   const [type, setType] = useState("retail");
   const [currency, setCurrency] = useState("USD");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Credit settings
   const [defaultCreditLimit, setDefaultCreditLimit] = useState("50");
   const [maxCashierCreditAmount, setMaxCashierCreditAmount] = useState("20");
   const [requireOwnerApproval, setRequireOwnerApproval] = useState(false);
@@ -39,8 +31,8 @@ export default function Settings() {
   const [savingCredit, setSavingCredit] = useState(false);
 
   useEffect(() => {
-    if (businessId) loadSettings();
-  }, [businessId]);
+    if (businessId && verified) loadSettings();
+  }, [businessId, verified]);
 
   const loadSettings = async () => {
     const { data } = await supabase
@@ -114,6 +106,14 @@ export default function Settings() {
     toast.success("Business deactivated");
     await signOut();
   };
+
+  if (verifying || !verified) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const daysLeft = trialEndsAt ? Math.max(0, differenceInDays(new Date(trialEndsAt), new Date())) : null;
 

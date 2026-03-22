@@ -12,14 +12,6 @@ export default function Admin() {
 
   useEffect(() => { if (verified) load(); }, [verified]);
 
-  if (verifying || !verified) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
   const load = async () => {
     const { data } = await supabase
       .from("business_profiles")
@@ -28,6 +20,14 @@ export default function Admin() {
     setBusinesses(data || []);
     setLoading(false);
   };
+
+  if (verifying || !verified || loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const total = businesses.length;
   const byPlan: Record<string, number> = {};
@@ -39,12 +39,6 @@ export default function Admin() {
   );
 
   const recent = businesses.slice(0, 10);
-
-  if (loading) return (
-    <div className="page-container flex items-center justify-center">
-      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
 
   return (
     <div className="page-container">
