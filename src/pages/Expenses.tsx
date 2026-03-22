@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBusiness } from "@/hooks/useBusiness";
+import { useRequireRole } from "@/hooks/useRequireRole";
 import PageHeader from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,8 +16,17 @@ import { format, startOfMonth, endOfMonth } from "date-fns";
 const expenseCategories = ["Restock", "Rent", "Wages", "Utilities", "Marketing", "Other"];
 
 export default function Expenses() {
+  const { verified, verifying } = useRequireRole(['owner', 'manager']);
   const { user } = useAuth();
   const { businessId } = useBusiness();
+
+  if (verifying || !verified) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
   const [expenses, setExpenses] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ category: "Restock", amount: "", note: "" });
@@ -48,7 +58,7 @@ export default function Expenses() {
     await supabase.from("expenses").insert({
       user_id: user.id, category: form.category,
       amount: Number(form.amount), note: form.note || null,
-      business_id: businessId,
+      business_id: businessId!,
     });
     toast.success("Expense logged");
     setDialogOpen(false);

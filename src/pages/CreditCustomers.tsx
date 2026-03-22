@@ -85,12 +85,11 @@ export default function CreditCustomers() {
   };
 
   const loadCustomers = async () => {
-    const { data } = await supabase
-      .from("credit_customers")
-      .select("*")
-      .eq("business_id", businessId!)
-      .order("full_name");
-    setCustomers((data as CreditCustomer[]) || []);
+    const query = isOwner || isManager
+      ? supabase.from("credit_customers").select("*").eq("business_id", businessId!).order("full_name")
+      : supabase.from("credit_customers").select("id, full_name, credit_limit, total_outstanding, is_active, created_at, created_by").eq("business_id", businessId!).order("full_name");
+    const { data } = await query;
+    setCustomers((data as unknown as CreditCustomer[]) || []);
   };
 
   const loadCustomerHistory = async (customerId: string) => {
@@ -216,7 +215,7 @@ export default function CreditCustomers() {
           </button>
           <div className="flex-1">
             <h1 className="text-lg font-bold">{selectedCustomer.full_name}</h1>
-            <p className="text-xs text-muted-foreground">{selectedCustomer.phone || "No phone"}</p>
+            {canManage && <p className="text-xs text-muted-foreground">{selectedCustomer.phone || "No phone"}</p>}
           </div>
           {canManage && (
             <Button size="sm" variant="outline" onClick={() => openEdit(selectedCustomer)}>Edit</Button>
@@ -358,7 +357,7 @@ export default function CreditCustomers() {
           >
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{c.full_name}</p>
-              <p className="text-xs text-muted-foreground">{c.phone || "No phone"}</p>
+              {canManage && <p className="text-xs text-muted-foreground">{c.phone || "No phone"}</p>}
             </div>
             <div className="text-right shrink-0">
               <p className={`text-sm font-medium tabular-nums ${c.total_outstanding > c.credit_limit ? "text-destructive" : ""}`}>

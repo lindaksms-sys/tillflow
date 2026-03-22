@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBusiness } from "@/hooks/useBusiness";
+import { useRequireRole } from "@/hooks/useRequireRole";
 import PageHeader from "@/components/PageHeader";
 import { AlertTriangle, TrendingDown, PackageX, ShieldAlert, UserCheck, DollarSign } from "lucide-react";
 import { subDays, startOfMonth } from "date-fns";
@@ -9,8 +10,17 @@ import { subDays, startOfMonth } from "date-fns";
 type InsightItem = { name: string; value: number; detail: string };
 
 export default function Insights() {
+  const { verified, verifying } = useRequireRole(['owner', 'manager']);
   const { user } = useAuth();
   const { businessId } = useBusiness();
+
+  if (verifying || !verified) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
   const [deadStock, setDeadStock] = useState<InsightItem[]>([]);
   const [lowMargin, setLowMargin] = useState<InsightItem[]>([]);
   const [highWastage, setHighWastage] = useState<InsightItem[]>([]);
