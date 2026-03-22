@@ -15,6 +15,7 @@ import Insights from "./pages/Insights";
 import Staff from "./pages/Staff";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
+import CreditCustomers from "./pages/CreditCustomers";
 import BottomNav from "./components/BottomNav";
 import TrialBanner from "./components/TrialBanner";
 import TrialExpired from "./components/TrialExpired";

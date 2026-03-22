@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Package, Layers, ShoppingCart, Receipt, Lightbulb, Users, Settings } from "lucide-react";
+import { LayoutDashboard, Package, Layers, ShoppingCart, Receipt, Lightbulb, Users, Settings, UserCheck } from "lucide-react";
 import { useBusiness } from "@/hooks/useBusiness";
 
 const allTabs = [
@@ -7,6 +7,7 @@ const allTabs = [
   { path: "/products", icon: Package, label: "Products", roles: ["owner", "manager"] },
   { path: "/stock", icon: Layers, label: "Stock", roles: ["owner", "manager", "cashier"] },
   { path: "/sales", icon: ShoppingCart, label: "Sales", roles: ["owner", "manager", "cashier"] },
+  { path: "/credit-customers", icon: UserCheck, label: "Credit", roles: ["owner", "manager", "cashier"] },
   { path: "/expenses", icon: Receipt, label: "Expenses", roles: ["owner", "manager"] },
   { path: "/insights", icon: Lightbulb, label: "Insights", roles: ["owner", "manager"] },
   { path: "/staff", icon: Users, label: "Staff", roles: ["owner"] },
