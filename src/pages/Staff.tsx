@@ -50,42 +50,36 @@ export default function Staff() {
     if (!inviteEmail || !inviteName || !businessId) return;
     setLoading(true);
 
-    // Sign up the user with a generated password — they'll reset via email
-    const tempPassword = crypto.randomUUID().slice(0, 16) + "A1!";
-    const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-      email: inviteEmail,
-      password: tempPassword,
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-staff", {
+        body: {
+          email: inviteEmail,
+          role: inviteRole,
+          business_id: businessId,
+          full_name: inviteName,
+        },
+      });
 
-    if (signUpErr) {
-      toast.error(signUpErr.message);
-      setLoading(false);
-      return;
-    }
+      if (error) {
+        toast.error("Failed to send invitation");
+        setLoading(false);
+        return;
+      }
 
-    const newUserId = signUpData.user?.id;
-    if (!newUserId) {
-      toast.error("Failed to create user");
-      setLoading(false);
-      return;
-    }
+      if (data?.error) {
+        toast.error(data.error);
+        setLoading(false);
+        return;
+      }
 
-    const { error } = await supabase.from("business_members").insert({
-      business_id: businessId,
-      user_id: newUserId,
-      role: inviteRole,
-      full_name: inviteName,
-    });
-
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success(`Invited ${inviteName} as ${inviteRole}. They'll receive an email to confirm.`);
+      toast.success(`Invited ${inviteName} as ${inviteRole}. They'll receive an email invitation.`);
       setDialogOpen(false);
       setInviteEmail("");
       setInviteName("");
       setInviteRole("cashier");
       load();
+    } catch (err) {
+      toast.error("Failed to send invitation");
     }
     setLoading(false);
   };
