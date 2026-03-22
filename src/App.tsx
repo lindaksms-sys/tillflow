@@ -63,6 +63,7 @@ function AppRoutes() {
         <Route path="/products" element={<RoleGuard allowed={["owner", "manager"]}><Products /></RoleGuard>} />
         <Route path="/stock" element={<Stock />} />
         <Route path="/sales" element={<Sales />} />
+        <Route path="/credit-customers" element={<CreditCustomers />} />
         <Route path="/expenses" element={<RoleGuard allowed={["owner", "manager"]}><Expenses /></RoleGuard>} />
         <Route path="/insights" element={<RoleGuard allowed={["owner", "manager"]}><Insights /></RoleGuard>} />
         <Route path="/staff" element={<RoleGuard allowed={["owner"]}><Staff /></RoleGuard>} />
