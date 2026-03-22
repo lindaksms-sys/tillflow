@@ -1,1 +1,5 @@
 project_id = "cqlsebivxxngxxmysmdx"
+
+[auth]
+site_url = "https://tillflow.lovable.app"
+additional_redirect_urls = ["https://tillflow.lovable.app/accept-invite"]

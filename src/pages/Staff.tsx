@@ -75,7 +75,7 @@ export default function Staff() {
         return;
       }
 
-      toast.success(`Invited ${inviteName} as ${inviteRole}. They'll receive an email invitation.`);
+      toast.success(`Invite sent to ${inviteEmail}. Ask them to check their inbox and spam folder. The link expires in 24 hours.`);
       setDialogOpen(false);
       setInviteEmail("");
       setInviteName("");

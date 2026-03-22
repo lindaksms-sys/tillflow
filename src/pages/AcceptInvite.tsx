@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 export default function AcceptInvite() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<"loading" | "form" | "error">("loading");
+  const [step, setStep] = useState<"loading" | "form" | "no-token" | "error">("loading");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -20,14 +20,26 @@ export default function AcceptInvite() {
   }, []);
 
   async function handleInviteToken() {
+    // Check hash format: #access_token=xxx&type=invite
     const hash = window.location.hash.substring(1);
-    const params = new URLSearchParams(hash);
-    const accessToken = params.get("access_token");
-    const type = params.get("type");
+    const hashParams = new URLSearchParams(hash);
+    let accessToken = hashParams.get("access_token");
+    let type = hashParams.get("type");
+
+    // Also check query param format: ?token=xxx&type=invite
+    if (!accessToken || type !== "invite") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const queryToken = searchParams.get("token");
+      const queryType = searchParams.get("type");
+      if (queryToken && queryType === "invite") {
+        accessToken = queryToken;
+        type = "invite";
+      }
+    }
 
     if (!accessToken || type !== "invite") {
-      // No invite token — redirect to login
-      navigate("/", { replace: true });
+      // No invite token found at all
+      setStep("no-token");
       return;
     }
 
@@ -49,7 +61,6 @@ export default function AcceptInvite() {
       }
 
       // Token verified — user is now signed in with a temporary session
-      // Pre-fill name from user metadata if available
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.user_metadata?.full_name) {
         setFullName(user.user_metadata.full_name);
@@ -81,7 +92,6 @@ export default function AcceptInvite() {
 
     setSubmitting(true);
     try {
-      // Update password and name
       const { error: updateError } = await supabase.auth.updateUser({
         password,
         data: { full_name: fullName.trim() },
@@ -93,7 +103,6 @@ export default function AcceptInvite() {
         return;
       }
 
-      // Update the business_members record with the entered name
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase
@@ -103,8 +112,6 @@ export default function AcceptInvite() {
       }
 
       toast.success("Account set up successfully! Welcome to TillFlow.");
-      
-      // Clear hash from URL and redirect
       window.location.hash = "";
       navigate("/", { replace: true });
     } catch (err) {
@@ -123,6 +130,23 @@ export default function AcceptInvite() {
     );
   }
 
+  if (step === "no-token") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-sm space-y-6 text-center">
+          <div className="text-4xl">📩</div>
+          <h1 className="text-xl font-semibold text-foreground">Invalid Invite Link</h1>
+          <p className="text-muted-foreground text-sm">
+            Your invite link may have expired or is invalid. Please ask your manager to resend the invitation.
+          </p>
+          <Button onClick={() => navigate("/", { replace: true })} className="w-full">
+            Back to Login
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (step === "error") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -131,7 +155,7 @@ export default function AcceptInvite() {
           <h1 className="text-xl font-semibold text-foreground">Invitation Error</h1>
           <p className="text-muted-foreground text-sm">{errorMsg}</p>
           <Button onClick={() => navigate("/", { replace: true })} className="w-full">
-            Go to Login
+            Back to Login
           </Button>
         </div>
       </div>
