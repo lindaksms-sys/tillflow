@@ -42,7 +42,7 @@ function AppRoutes() {
 
   // Accept-invite must be accessible without auth
   const pathname = window.location.pathname;
-  if (pathname === "/accept-invite") {
+  if (pathname.startsWith("/accept-invite")) {
     return (
       <Routes>
         <Route path="/accept-invite" element={<AcceptInvite />} />
