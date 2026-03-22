@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Plus, Minus, ShoppingCart, X, CreditCard, Banknote, Smartphone, RotateCcw, ScanLine, Keyboard, Tag, UserCheck, AlertTriangle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, Plus, Minus, ShoppingCart, X, CreditCard, Banknote, Smartphone, RotateCcw, ScanLine, Keyboard, Tag, UserCheck, AlertTriangle, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import type { Product, CartItem, Promotion } from "@/lib/supabase-helpers";
 import BarcodeScanner from "@/components/BarcodeScanner";
+import ReceiptModal from "@/components/ReceiptModal";
 
 type CreditCustomer = {
   id: string;
@@ -58,6 +60,16 @@ export default function Sales() {
   const [showManualSku, setShowManualSku] = useState(false);
   const [dateFilter, setDateFilter] = useState("");
 
+  // Receipt modal
+  const [receiptSale, setReceiptSale] = useState<any | null>(null);
+
+  // History filters
+  const [customerFilter, setCustomerFilter] = useState<string>("all");
+  const [staffFilter, setStaffFilter] = useState<string>("all");
+  const [staffMembers, setStaffMembers] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [creditCustomerSales, setCreditCustomerSales] = useState<Map<string, string[]>>(new Map());
+  const [customerSummary, setCustomerSummary] = useState<{ purchased: number; outstanding: number; paid: number } | null>(null);
+
   // Credit state
   const [creditCustomers, setCreditCustomers] = useState<CreditCustomer[]>([]);
   const [selectedCreditCustomer, setSelectedCreditCustomer] = useState<CreditCustomer | null>(null);
@@ -67,7 +79,7 @@ export default function Sales() {
     require_owner_approval_credit: false,
   });
 
-  useEffect(() => { if (user && businessId) { loadProducts(); loadHistory(); loadCreditData(); } }, [user, businessId]);
+  useEffect(() => { if (user && businessId) { loadProducts(); loadHistory(); loadCreditData(); loadStaffMembers(); } }, [user, businessId]);
 
   const loadProducts = async () => {
     const { data } = await supabase.from("products").select("*").eq("business_id", businessId!).order("name");
@@ -81,8 +93,39 @@ export default function Sales() {
     if (dateFilter) {
       q = q.gte("created_at", dateFilter + "T00:00:00").lte("created_at", dateFilter + "T23:59:59");
     }
+    if (staffFilter !== "all") {
+      q = q.eq("user_id", staffFilter);
+    }
     const { data } = await q;
-    setSalesHistory(data || []);
+    let sales = data || [];
+
+    // If customer filter is active, filter by credit_sales
+    if (customerFilter !== "all") {
+      const { data: cs } = await supabase
+        .from("credit_sales")
+        .select("sale_id, amount, amount_paid")
+        .eq("business_id", businessId!)
+        .eq("customer_id", customerFilter);
+      const saleIds = new Set((cs || []).map(c => c.sale_id).filter(Boolean));
+      sales = sales.filter(s => saleIds.has(s.id));
+      const purchased = (cs || []).reduce((s, c) => s + Number(c.amount), 0);
+      const paid = (cs || []).reduce((s, c) => s + Number(c.amount_paid), 0);
+      setCustomerSummary({ purchased, outstanding: purchased - paid, paid });
+    } else {
+      setCustomerSummary(null);
+    }
+
+    setSalesHistory(sales);
+  };
+
+  const loadStaffMembers = async () => {
+    const { data } = await supabase
+      .from("business_members")
+      .select("user_id, full_name")
+      .eq("business_id", businessId!)
+      .eq("is_active", true)
+      .order("full_name");
+    setStaffMembers(data || []);
   };
 
   const loadCreditData = async () => {
@@ -102,7 +145,7 @@ export default function Sales() {
     if (bp) setCreditSettings(bp as any);
   };
 
-  useEffect(() => { if (user && businessId) loadHistory(); }, [dateFilter]);
+  useEffect(() => { if (user && businessId) loadHistory(); }, [dateFilter, customerFilter, staffFilter]);
 
   const getActivePromo = (productId: string): Promotion | null => {
     return promotions.find(p => p.product_id === productId) || null;
@@ -432,26 +475,73 @@ export default function Sales() {
         </>
       ) : (
         <>
-          <Input type="date" className="input-dark mb-3 h-9" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
+          <div className="space-y-2 mb-3">
+            <Input type="date" className="input-dark h-9" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
+            <div className="flex gap-2">
+              <Select value={customerFilter} onValueChange={setCustomerFilter}>
+                <SelectTrigger className="h-9 flex-1 text-sm">
+                  <SelectValue placeholder="All Customers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Customers</SelectItem>
+                  {creditCustomers.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(isOwner || isManager) && (
+                <Select value={staffFilter} onValueChange={setStaffFilter}>
+                  <SelectTrigger className="h-9 flex-1 text-sm">
+                    <SelectValue placeholder="All Staff" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Staff</SelectItem>
+                    {staffMembers.map(m => (
+                      <SelectItem key={m.user_id} value={m.user_id}>{m.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+
+          {customerSummary && customerFilter !== "all" && (
+            <div className="glass-card p-3 mb-3 flex justify-between text-xs">
+              <span>Purchased: <strong className="tabular-nums">${customerSummary.purchased.toFixed(2)}</strong></span>
+              <span>Outstanding: <strong className="tabular-nums text-destructive">${customerSummary.outstanding.toFixed(2)}</strong></span>
+              <span>Paid: <strong className="tabular-nums text-primary">${customerSummary.paid.toFixed(2)}</strong></span>
+            </div>
+          )}
+
           <div className="space-y-2">
             {salesHistory.map(s => (
-              <div key={s.id} className={`glass-card p-3 ${s.is_voided ? "opacity-50" : ""}`}>
+              <button
+                key={s.id}
+                onClick={() => setReceiptSale(s)}
+                className={`w-full glass-card p-3 text-left transition-colors hover:bg-muted/50 ${s.is_voided ? "opacity-50" : ""}`}
+              >
                 <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-sm font-medium tabular-nums">${Number(s.total_amount).toFixed(2)}</p>
-                    <p className="text-xs text-muted-foreground capitalize">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Receipt className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <p className="text-sm font-medium tabular-nums">${Number(s.total_amount).toFixed(2)}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground capitalize mt-0.5">
                       {s.payment_method.replace("_", " ")} · {format(new Date(s.created_at), "MMM d, HH:mm")}
                     </p>
                   </div>
                   {s.is_voided ? (
                     <span className="text-xs text-destructive font-medium">Voided</span>
-                  ) : (
-                    <button onClick={() => voidSale(s.id)} className="p-2 text-muted-foreground hover:text-destructive">
+                  ) : (isOwner || isManager) ? (
+                    <button
+                      onClick={e => { e.stopPropagation(); voidSale(s.id); }}
+                      className="p-2 text-muted-foreground hover:text-destructive"
+                    >
                       <RotateCcw className="w-4 h-4" />
                     </button>
-                  )}
+                  ) : null}
                 </div>
-              </div>
+              </button>
             ))}
             {salesHistory.length === 0 && <p className="text-center text-muted-foreground text-sm py-8">No sales</p>}
           </div>
@@ -474,6 +564,12 @@ export default function Sales() {
           if (found) { addToCart(found); toast.success(`Added: ${found.name}`); }
           else toast.error(`No product with SKU "${code}"`);
         }}
+      />
+
+      <ReceiptModal
+        open={!!receiptSale}
+        onClose={() => setReceiptSale(null)}
+        sale={receiptSale}
       />
     </div>
   );
