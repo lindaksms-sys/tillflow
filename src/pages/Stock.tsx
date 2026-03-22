@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, ArrowDownUp, Search } from "lucide-react";
+import { AlertTriangle, ArrowDownUp, Search, ScanLine } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import ReceiptScanner from "@/components/ReceiptScanner";
 
 type StockRow = {
   product_id: string;
