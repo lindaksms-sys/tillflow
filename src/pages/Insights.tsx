@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBusiness } from "@/hooks/useBusiness";
+import { useRequireRole } from "@/hooks/useRequireRole";
 import PageHeader from "@/components/PageHeader";
 import { AlertTriangle, TrendingDown, PackageX, ShieldAlert, UserCheck, DollarSign } from "lucide-react";
 import { subDays, startOfMonth } from "date-fns";
