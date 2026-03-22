@@ -15,6 +15,20 @@ export default function Login() {
   const [signUpSuccess, setSignUpSuccess] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    setSignUpSuccess(false);
+    const { error } = isSignUp ? await signUp(email, password) : await signIn(email, password);
+    if (error) {
+      setError(error.message);
+    } else if (isSignUp) {
+      setSignUpSuccess(true);
+    }
+    setLoading(false);
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-8">
