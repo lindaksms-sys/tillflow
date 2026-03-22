@@ -229,22 +229,19 @@ export default function Sales() {
     });
     await supabase.from("sale_items").insert(items as any);
 
-    // If credit sale, insert credit_sales and update customer outstanding
+    // If credit sale, use server-side RPC for validation and insertion
     if (isCreditSale && selectedCreditCustomer) {
-      await supabase.from("credit_sales").insert({
-        business_id: businessId,
-        customer_id: selectedCreditCustomer.id,
-        sale_id: sale.id,
-        amount: total,
-        amount_paid: 0,
-        status: "outstanding",
-        created_by: user.id,
-        approved_by: (isOwner || isManager) ? user.id : null,
+      const { error: creditError } = await supabase.rpc("record_credit_sale" as any, {
+        _customer_id: selectedCreditCustomer.id,
+        _sale_id: sale.id,
+        _amount: total,
+        _due_date: null,
       });
-
-      await supabase.from("credit_customers").update({
-        total_outstanding: selectedCreditCustomer.total_outstanding + total,
-      }).eq("id", selectedCreditCustomer.id);
+      if (creditError) {
+        toast.error(creditError.message || "Credit sale failed");
+        // Sale was already inserted, but credit recording failed — notify user
+        console.error("Credit sale RPC error:", creditError);
+      }
     }
 
     // Deduct stock
