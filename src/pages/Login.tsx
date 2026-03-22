@@ -71,11 +71,38 @@ export default function Login() {
           </Button>
           <button
             type="button"
-            onClick={() => { setIsSignUp(!isSignUp); setError(""); }}
+            onClick={() => { setIsSignUp(!isSignUp); setError(""); setSignUpSuccess(false); }}
             className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
           </button>
+          {!isSignUp && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (!email) {
+                  setError("Enter your email address first");
+                  return;
+                }
+                setLoading(true);
+                setError("");
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                  redirectTo: `${window.location.origin}/reset-password`,
+                });
+                setLoading(false);
+                if (error) {
+                  setError(error.message);
+                } else {
+                  setSignUpSuccess(false);
+                  setError("");
+                  setForgotSent(true);
+                }
+              }}
+              className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Forgot password?
+            </button>
+          )}
         </form>
       </div>
     </div>
