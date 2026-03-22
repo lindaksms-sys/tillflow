@@ -248,7 +248,7 @@ export default function ReceiptModal({ open, onClose, sale }: Props) {
     y += 2;
     doc.line(lm, y, lm + pw, y); y += 3;
     doc.setFontSize(6);
-    doc.text(`Thank you for your business — ${bName}`, 40, y, { align: "center" });
+    doc.text(`Powered by TillFlow`, 40, y, { align: "center" });
 
     const safeName = bName.replace(/[^a-zA-Z0-9]/g, "_");
     doc.save(`receipt_${safeName}_${receiptNo}.pdf`);
