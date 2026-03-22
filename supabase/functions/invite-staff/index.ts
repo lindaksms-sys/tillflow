@@ -81,7 +81,7 @@ serve(async (req) => {
 
     // Invite user via admin API — sends magic link email
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: 'https://tillflow.lovable.app/accept-invite',
+      redirectTo: 'https://tillflow.creativehauz.space/accept-invite',
       data: { business_id, role, full_name },
     });
 
