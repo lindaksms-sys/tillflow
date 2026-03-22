@@ -9,6 +9,7 @@ import { format, subDays, startOfDay, endOfDay, startOfMonth } from "date-fns";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { businessId, currency } = useBusiness();
   const [todayRevenue, setTodayRevenue] = useState(0);
   const [todayExpenses, setTodayExpenses] = useState(0);
   const [chartData, setChartData] = useState<any[]>([]);
@@ -16,10 +17,12 @@ export default function Dashboard() {
   const [promoSummary, setPromoSummary] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const sym = currency || "$";
+
   useEffect(() => {
-    if (!user) return;
+    if (!user || !businessId) return;
     loadData();
-  }, [user]);
+  }, [user, businessId]);
 
   const loadData = async () => {
     const today = new Date();
