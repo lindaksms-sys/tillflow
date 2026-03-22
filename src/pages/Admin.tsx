@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import PageHeader from "@/components/PageHeader";
+import { useRequireAdmin } from "@/hooks/useRequireRole";
 import { Badge } from "@/components/ui/badge";
 import { format, addDays } from "date-fns";
 
