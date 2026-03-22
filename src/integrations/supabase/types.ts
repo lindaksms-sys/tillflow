@@ -602,6 +602,16 @@ export type Database = {
         }
         Returns: string
       }
+      record_credit_payment: {
+        Args: {
+          p_amount: number
+          p_business_id: string
+          p_credit_sale_id: string
+          p_payment_method: string
+          p_received_by: string
+        }
+        Returns: Json
+      }
       record_credit_sale: {
         Args: {
           _amount: number
