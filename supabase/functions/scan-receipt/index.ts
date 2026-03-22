@@ -82,7 +82,7 @@ serve(async (req) => {
                 {
                   type: "image_url",
                   image_url: {
-                    url: `data:${mime_type || "image/jpeg"};base64,${image_base64}`,
+                    url: `data:${safeMime};base64,${image_base64}`,
                   },
                 },
               ],
