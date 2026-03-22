@@ -86,47 +86,26 @@ export default function ReceiptScanner({ open, onOpenChange, onComplete }: Props
     const mimeType = file.type || "image/jpeg";
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyBKjE2DRInmspMDzHXFyM4LOZpKJ9dcE3Y";
       const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scan-receipt`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                {
-                  text: 'You are a receipt parser. Extract all products and quantities from this supplier receipt. Return ONLY valid JSON, nothing else: { "supplier": "string|null", "date": "string|null", "items": [ { "name": "string", "quantity": "number", "unit_price": "number|null" } ] }',
-                },
-                {
-                  inline_data: { mime_type: mimeType, data: base64 },
-                },
-              ],
-            }],
-          }),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ image_base64: base64, mime_type: mimeType }),
         }
       );
 
       if (!resp.ok) {
-        const errText = await resp.text();
-        console.error("Gemini API error:", errText);
-        toast.error("Failed to read receipt. Try again.");
+        const errData = await resp.json().catch(() => ({ error: "Failed to read receipt" }));
+        toast.error(errData.error || "Failed to read receipt. Try again.");
         setStep("capture");
         return;
       }
 
-      const data = await resp.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      
-      // Extract JSON from response (handle markdown code blocks)
-      const jsonMatch = text.match(/```json?\s*([\s\S]*?)```/) || text.match(/(\{[\s\S]*\})/);
-      if (!jsonMatch) {
-        toast.error("Could not parse receipt. Try a clearer image.");
-        setStep("capture");
-        return;
-      }
-
-      const parsed = JSON.parse(jsonMatch[1]);
+      const parsed = await resp.json();
       setSupplierInfo(parsed.supplier || null);
 
       const mapped: ExtractedItem[] = (parsed.items || []).map((item: any) => {
