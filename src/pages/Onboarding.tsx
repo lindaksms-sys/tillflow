@@ -35,8 +35,8 @@ export default function Onboarding() {
             <Package className="w-8 h-8" />
             <BarChart3 className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground" style={{ lineHeight: "1.1" }}>Set Up Your Business</h1>
-          <p className="text-muted-foreground text-sm">Tell us about your business to get started</p>
+          <h1 className="text-3xl font-bold text-foreground" style={{ lineHeight: "1.1" }}>Welcome to TillFlow</h1>
+          <p className="text-muted-foreground text-sm">Set up your business to get started</p>
         </div>
 
         <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
