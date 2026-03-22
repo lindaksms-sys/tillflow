@@ -63,7 +63,7 @@ export default function Login() {
               </div>
             )}
             {error && <p className="text-destructive text-sm">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading || googleLoading}>
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "..." : isSignUp ? "Create Account" : "Sign In"}
             </Button>
             <button
