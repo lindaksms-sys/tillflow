@@ -1,7 +1,7 @@
 {
   "name": "TillFlow",
   "short_name": "TillFlow",
-  "description": "Smart business management for retail & bar",
+  "description": "Know your stock. Own your profit.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
