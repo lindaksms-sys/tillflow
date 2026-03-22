@@ -20,47 +20,56 @@ export default function AcceptInvite() {
   }, []);
 
   async function handleInviteToken() {
-    // Check hash format: #access_token=xxx&type=invite
+    // Clear any existing session first (e.g. owner's session on shared device)
+    await supabase.auth.signOut();
+
     const hash = window.location.hash.substring(1);
     const hashParams = new URLSearchParams(hash);
-    let accessToken = hashParams.get("access_token");
-    let type = hashParams.get("type");
+    const searchParams = new URLSearchParams(window.location.search);
 
-    // Also check query param format: ?token=xxx&type=invite
-    if (!accessToken || type !== "invite") {
-      const searchParams = new URLSearchParams(window.location.search);
-      const queryToken = searchParams.get("token");
-      const queryType = searchParams.get("type");
-      if (queryToken && queryType === "invite") {
-        accessToken = queryToken;
-        type = "invite";
-      }
-    }
+    // Format 1: Hash tokens — #access_token=xxx&refresh_token=yyy&type=invite
+    const hashAccessToken = hashParams.get("access_token");
+    const hashRefreshToken = hashParams.get("refresh_token");
+    const hashType = hashParams.get("type");
 
-    if (!accessToken || type !== "invite") {
-      // No invite token found at all
-      setStep("no-token");
-      return;
-    }
+    // Format 2: Query OTP — ?token_hash=xxx&type=invite (or ?token=xxx&type=invite)
+    const queryTokenHash = searchParams.get("token_hash") || searchParams.get("token");
+    const queryType = searchParams.get("type");
 
     try {
-      // Clear any existing session first (e.g. owner's session)
-      await supabase.auth.signOut();
+      if (hashAccessToken && hashRefreshToken && hashType === "invite") {
+        // Session-based invite: set the session directly
+        const { error } = await supabase.auth.setSession({
+          access_token: hashAccessToken,
+          refresh_token: hashRefreshToken,
+        });
 
-      // Verify the invite token
-      const { error } = await supabase.auth.verifyOtp({
-        token_hash: accessToken,
-        type: "invite",
-      });
+        if (error) {
+          console.error("Session set error:", error);
+          setErrorMsg("This invitation link is invalid or has expired. Please ask your manager to send a new invite.");
+          setStep("error");
+          return;
+        }
+      } else if (queryTokenHash && queryType === "invite") {
+        // OTP-based invite: verify the token hash
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: queryTokenHash,
+          type: "invite",
+        });
 
-      if (error) {
-        console.error("Invite verification error:", error);
-        setErrorMsg("This invitation link is invalid or has expired. Please ask your manager to send a new invite.");
-        setStep("error");
+        if (error) {
+          console.error("OTP verify error:", error);
+          setErrorMsg("This invitation link is invalid or has expired. Please ask your manager to send a new invite.");
+          setStep("error");
+          return;
+        }
+      } else {
+        // No valid invite token found
+        setStep("no-token");
         return;
       }
 
-      // Token verified — user is now signed in with a temporary session
+      // At this point we have a valid session for the invited user
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.user_metadata?.full_name) {
         setFullName(user.user_metadata.full_name);
