@@ -20,6 +20,7 @@ import BottomNav from "./components/BottomNav";
 import TrialBanner from "./components/TrialBanner";
 import TrialExpired from "./components/TrialExpired";
 import AcceptInvite from "./pages/AcceptInvite";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();

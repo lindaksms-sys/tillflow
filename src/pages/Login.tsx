@@ -67,6 +67,14 @@ export default function Login() {
               </p>
             </div>
           )}
+          {forgotSent && (
+            <div className="bg-primary/10 border border-primary/20 rounded-md p-3 text-sm text-foreground">
+              <p className="font-medium">Password reset email sent</p>
+              <p className="text-muted-foreground mt-1">
+                Check your inbox (and spam folder) at <strong>{email}</strong> for a link to reset your password.
+              </p>
+            </div>
+          )}
           {error && <p className="text-destructive text-sm">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "..." : isSignUp ? "Create Account" : "Sign In"}
