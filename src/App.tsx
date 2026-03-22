@@ -19,6 +19,7 @@ import CreditCustomers from "./pages/CreditCustomers";
 import BottomNav from "./components/BottomNav";
 import TrialBanner from "./components/TrialBanner";
 import TrialExpired from "./components/TrialExpired";
+import AcceptInvite from "./pages/AcceptInvite";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,16 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { user, loading: authLoading } = useAuth();
   const { businessId, plan, trialEndsAt, loading: bizLoading } = useBusiness();
+
+  // Accept-invite must be accessible without auth
+  const pathname = window.location.pathname;
+  if (pathname === "/accept-invite") {
+    return (
+      <Routes>
+        <Route path="/accept-invite" element={<AcceptInvite />} />
+      </Routes>
+    );
+  }
 
   if (authLoading || (user && bizLoading)) {
     return (
