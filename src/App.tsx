@@ -15,6 +15,7 @@ import Insights from "./pages/Insights";
 import Staff from "./pages/Staff";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
+import CreditCustomers from "./pages/CreditCustomers";
 import BottomNav from "./components/BottomNav";
 import TrialBanner from "./components/TrialBanner";
 import TrialExpired from "./components/TrialExpired";
@@ -62,6 +63,7 @@ function AppRoutes() {
         <Route path="/products" element={<RoleGuard allowed={["owner", "manager"]}><Products /></RoleGuard>} />
         <Route path="/stock" element={<Stock />} />
         <Route path="/sales" element={<Sales />} />
+        <Route path="/credit-customers" element={<CreditCustomers />} />
         <Route path="/expenses" element={<RoleGuard allowed={["owner", "manager"]}><Expenses /></RoleGuard>} />
         <Route path="/insights" element={<RoleGuard allowed={["owner", "manager"]}><Insights /></RoleGuard>} />
         <Route path="/staff" element={<RoleGuard allowed={["owner"]}><Staff /></RoleGuard>} />

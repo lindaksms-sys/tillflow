@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Upload, AlertTriangle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Upload, AlertTriangle, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInDays } from "date-fns";
 
@@ -19,6 +20,13 @@ export default function Settings() {
   const [currency, setCurrency] = useState("USD");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Credit settings
+  const [defaultCreditLimit, setDefaultCreditLimit] = useState("50");
+  const [maxCashierCreditAmount, setMaxCashierCreditAmount] = useState("20");
+  const [requireOwnerApproval, setRequireOwnerApproval] = useState(false);
+  const [allowCashierPayments, setAllowCashierPayments] = useState(true);
+  const [savingCredit, setSavingCredit] = useState(false);
 
   useEffect(() => {
     if (businessId) loadSettings();
@@ -35,6 +43,10 @@ export default function Settings() {
       setType(data.type);
       setCurrency(data.currency);
       setLogoUrl(data.logo_url);
+      setDefaultCreditLimit(String((data as any).default_credit_limit ?? 50));
+      setMaxCashierCreditAmount(String((data as any).max_cashier_credit_amount ?? 20));
+      setRequireOwnerApproval((data as any).require_owner_approval_credit ?? false);
+      setAllowCashierPayments((data as any).allow_cashier_record_payments ?? true);
     }
   };
 
@@ -51,6 +63,23 @@ export default function Settings() {
       await refresh();
     }
     setSaving(false);
+  };
+
+  const saveCreditSettings = async () => {
+    if (!businessId) return;
+    setSavingCredit(true);
+    const { error } = await supabase
+      .from("business_profiles")
+      .update({
+        default_credit_limit: Number(defaultCreditLimit) || 50,
+        max_cashier_credit_amount: Number(maxCashierCreditAmount) || 20,
+        require_owner_approval_credit: requireOwnerApproval,
+        allow_cashier_record_payments: allowCashierPayments,
+      } as any)
+      .eq("id", businessId);
+    if (error) toast.error(error.message);
+    else toast.success("Credit settings saved");
+    setSavingCredit(false);
   };
 
   const uploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,6 +167,42 @@ export default function Settings() {
           {plan === "trial" && daysLeft !== null && (
             <span className="text-xs text-accent tabular-nums">{daysLeft} days left</span>
           )}
+        </div>
+      </div>
+
+      {/* Credit Controls */}
+      <div className="glass-card p-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <UserCheck className="w-4 h-4 text-primary" />
+          <h2 className="text-sm font-semibold">Credit Controls</h2>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Default Credit Limit ($)</label>
+            <Input className="input-dark" type="number" step="0.01" value={defaultCreditLimit} onChange={e => setDefaultCreditLimit(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Max Cashier Credit Sale ($)</label>
+            <Input className="input-dark" type="number" step="0.01" value={maxCashierCreditAmount} onChange={e => setMaxCashierCreditAmount(e.target.value)} />
+            <p className="text-[10px] text-muted-foreground mt-1">Cashiers cannot create credit sales above this amount</p>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm">Require owner approval for all credit</p>
+              <p className="text-[10px] text-muted-foreground">Cashiers must get owner/manager approval</p>
+            </div>
+            <Switch checked={requireOwnerApproval} onCheckedChange={setRequireOwnerApproval} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm">Allow cashiers to record payments</p>
+              <p className="text-[10px] text-muted-foreground">If off, only owner/manager can record credit payments</p>
+            </div>
+            <Switch checked={allowCashierPayments} onCheckedChange={setAllowCashierPayments} />
+          </div>
+          <Button className="w-full" onClick={saveCreditSettings} disabled={savingCredit}>
+            {savingCredit ? "Saving..." : "Save Credit Settings"}
+          </Button>
         </div>
       </div>
 

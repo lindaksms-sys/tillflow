@@ -7,11 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Plus, Minus, ShoppingCart, X, CreditCard, Banknote, Smartphone, RotateCcw, ScanLine, Keyboard, Tag } from "lucide-react";
+import { Search, Plus, Minus, ShoppingCart, X, CreditCard, Banknote, Smartphone, RotateCcw, ScanLine, Keyboard, Tag, UserCheck, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import type { Product, CartItem, Promotion } from "@/lib/supabase-helpers";
 import BarcodeScanner from "@/components/BarcodeScanner";
+
+type CreditCustomer = {
+  id: string;
+  full_name: string;
+  credit_limit: number;
+  total_outstanding: number;
+};
 
 /** Calculate line total with bundle pricing */
 function calcLineTotal(item: CartItem): { total: number; bundleCount: number; remainder: number } {
@@ -36,7 +43,7 @@ function formatLineLabel(item: CartItem): string | null {
 
 export default function Sales() {
   const { user } = useAuth();
-  const { businessId } = useBusiness();
+  const { businessId, role, isOwner, isManager } = useBusiness();
   const [tab, setTab] = useState<"pos" | "history">("pos");
   const [products, setProducts] = useState<Product[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -51,17 +58,26 @@ export default function Sales() {
   const [showManualSku, setShowManualSku] = useState(false);
   const [dateFilter, setDateFilter] = useState("");
 
-  useEffect(() => { if (user) { loadProducts(); loadHistory(); } }, [user]);
+  // Credit state
+  const [creditCustomers, setCreditCustomers] = useState<CreditCustomer[]>([]);
+  const [selectedCreditCustomer, setSelectedCreditCustomer] = useState<CreditCustomer | null>(null);
+  const [creditSearch, setCreditSearch] = useState("");
+  const [creditSettings, setCreditSettings] = useState({
+    max_cashier_credit_amount: 20,
+    require_owner_approval_credit: false,
+  });
+
+  useEffect(() => { if (user && businessId) { loadProducts(); loadHistory(); loadCreditData(); } }, [user, businessId]);
 
   const loadProducts = async () => {
-    const { data } = await supabase.from("products").select("*").order("name");
+    const { data } = await supabase.from("products").select("*").eq("business_id", businessId!).order("name");
     setProducts(data || []);
-    const { data: promos } = await supabase.from("promotions").select("*").eq("is_active", true);
+    const { data: promos } = await supabase.from("promotions").select("*").eq("is_active", true).eq("business_id", businessId!);
     setPromotions(promos || []);
   };
 
   const loadHistory = async () => {
-    let q = supabase.from("sales").select("*").order("created_at", { ascending: false }).limit(50);
+    let q = supabase.from("sales").select("*").eq("business_id", businessId!).order("created_at", { ascending: false }).limit(50);
     if (dateFilter) {
       q = q.gte("created_at", dateFilter + "T00:00:00").lte("created_at", dateFilter + "T23:59:59");
     }
@@ -69,7 +85,24 @@ export default function Sales() {
     setSalesHistory(data || []);
   };
 
-  useEffect(() => { if (user) loadHistory(); }, [dateFilter]);
+  const loadCreditData = async () => {
+    const { data: customers } = await supabase
+      .from("credit_customers")
+      .select("id, full_name, credit_limit, total_outstanding")
+      .eq("business_id", businessId!)
+      .eq("is_active", true)
+      .order("full_name");
+    setCreditCustomers((customers as CreditCustomer[]) || []);
+
+    const { data: bp } = await supabase
+      .from("business_profiles")
+      .select("max_cashier_credit_amount, require_owner_approval_credit")
+      .eq("id", businessId!)
+      .single();
+    if (bp) setCreditSettings(bp as any);
+  };
+
+  useEffect(() => { if (user && businessId) loadHistory(); }, [dateFilter]);
 
   const getActivePromo = (productId: string): Promotion | null => {
     return promotions.find(p => p.product_id === productId) || null;
@@ -119,8 +152,23 @@ export default function Sales() {
 
   const total = cart.reduce((s, c) => s + calcLineTotal(c).total, 0);
 
+  // Credit validation
+  const isCreditSale = paymentMethod === "credit";
+  const creditLimitExceeded = isCreditSale && selectedCreditCustomer
+    ? (selectedCreditCustomer.total_outstanding + total) > selectedCreditCustomer.credit_limit
+    : false;
+  const cashierOverLimit = isCreditSale && role === "cashier" && total > creditSettings.max_cashier_credit_amount;
+  const needsApproval = isCreditSale && (
+    creditSettings.require_owner_approval_credit && role === "cashier"
+  );
+  const creditBlocked = isCreditSale && (
+    !selectedCreditCustomer || creditLimitExceeded || cashierOverLimit || needsApproval
+  );
+
   const confirmSale = async () => {
     if (!user || cart.length === 0 || !businessId) return;
+    if (isCreditSale && creditBlocked) return;
+
     const { data: sale, error } = await supabase.from("sales").insert({
       user_id: user.id, payment_method: paymentMethod, total_amount: total, is_voided: false, business_id: businessId,
     }).select().single();
@@ -138,6 +186,24 @@ export default function Sales() {
     });
     await supabase.from("sale_items").insert(items as any);
 
+    // If credit sale, insert credit_sales and update customer outstanding
+    if (isCreditSale && selectedCreditCustomer) {
+      await supabase.from("credit_sales").insert({
+        business_id: businessId,
+        customer_id: selectedCreditCustomer.id,
+        sale_id: sale.id,
+        amount: total,
+        amount_paid: 0,
+        status: "outstanding",
+        created_by: user.id,
+        approved_by: (isOwner || isManager) ? user.id : null,
+      });
+
+      await supabase.from("credit_customers").update({
+        total_outstanding: selectedCreditCustomer.total_outstanding + total,
+      }).eq("id", selectedCreditCustomer.id);
+    }
+
     // Deduct stock
     for (const c of cart) {
       const { data: sl } = await supabase.from("stock_levels").select("quantity").eq("product_id", c.product.id).single();
@@ -148,9 +214,12 @@ export default function Sales() {
       }
     }
 
-    toast.success(`Sale: $${total.toFixed(2)}`);
+    toast.success(`${isCreditSale ? "Credit " : ""}Sale: $${total.toFixed(2)}`);
     setCart([]);
+    setSelectedCreditCustomer(null);
+    setCreditSearch("");
     loadHistory();
+    if (isCreditSale) loadCreditData();
   };
 
   const voidSale = async (saleId: string) => {
@@ -169,8 +238,11 @@ export default function Sales() {
   };
 
   const filteredProducts = products.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredCreditCustomers = creditCustomers.filter(c =>
+    !creditSearch || c.full_name.toLowerCase().includes(creditSearch.toLowerCase())
+  );
 
-  const paymentIcons: Record<string, any> = { cash: Banknote, card: CreditCard, mobile_money: Smartphone };
+  const paymentIcons: Record<string, any> = { cash: Banknote, card: CreditCard, mobile_money: Smartphone, credit: UserCheck };
 
   return (
     <div className="page-container">
@@ -200,12 +272,8 @@ export default function Sales() {
                 const code = manualSku.trim();
                 if (!code) return;
                 const found = products.find(p => p.sku === code);
-                if (found) {
-                  addToCart(found);
-                  toast.success(`Added: ${found.name}`);
-                } else {
-                  toast.error(`No product with SKU "${code}"`);
-                }
+                if (found) { addToCart(found); toast.success(`Added: ${found.name}`); }
+                else toast.error(`No product with SKU "${code}"`);
                 setManualSku("");
               }}
             >
@@ -257,9 +325,7 @@ export default function Sales() {
                       <button
                         onClick={() => togglePromo(i)}
                         className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
-                          c.usePromo
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border text-muted-foreground"
+                          c.usePromo ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
                         }`}
                       >
                         <Tag className="w-3 h-3" />
@@ -276,11 +342,12 @@ export default function Sales() {
             </div>
           )}
 
+          {/* Payment method selection */}
           <div className="flex gap-2 mb-3">
-            {(["cash", "card", "mobile_money"] as const).map(m => {
+            {(["cash", "card", "mobile_money", "credit"] as const).map(m => {
               const Icon = paymentIcons[m];
               return (
-                <button key={m} onClick={() => setPaymentMethod(m)}
+                <button key={m} onClick={() => { setPaymentMethod(m); if (m !== "credit") setSelectedCreditCustomer(null); }}
                   className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg border transition-colors ${
                     paymentMethod === m ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
                   }`}>
@@ -291,8 +358,76 @@ export default function Sales() {
             })}
           </div>
 
-          <Button className="w-full" disabled={cart.length === 0} onClick={confirmSale}>
-            <ShoppingCart className="w-4 h-4 mr-2" /> Confirm Sale
+          {/* Credit customer selection */}
+          {isCreditSale && (
+            <div className="glass-card p-3 mb-3 space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Credit Customer</p>
+              <Input
+                className="input-dark h-8 text-sm"
+                placeholder="Search customer name..."
+                value={creditSearch}
+                onChange={e => setCreditSearch(e.target.value)}
+              />
+              {creditSearch && !selectedCreditCustomer && (
+                <div className="max-h-32 overflow-y-auto divide-y divide-border rounded-lg border border-border">
+                  {filteredCreditCustomers.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => { setSelectedCreditCustomer(c); setCreditSearch(c.full_name); }}
+                      className="w-full flex justify-between items-center p-2 hover:bg-muted/50 text-left text-sm"
+                    >
+                      <span>{c.full_name}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">${c.total_outstanding.toFixed(2)} / ${c.credit_limit.toFixed(2)}</span>
+                    </button>
+                  ))}
+                  {filteredCreditCustomers.length === 0 && (
+                    <p className="text-xs text-muted-foreground p-2">No customers found</p>
+                  )}
+                </div>
+              )}
+              {selectedCreditCustomer && (
+                <div className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium">{selectedCreditCustomer.full_name}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      Outstanding: ${selectedCreditCustomer.total_outstanding.toFixed(2)} / Limit: ${selectedCreditCustomer.credit_limit.toFixed(2)}
+                    </p>
+                  </div>
+                  <button onClick={() => { setSelectedCreditCustomer(null); setCreditSearch(""); }} className="text-muted-foreground hover:text-destructive">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Warnings */}
+              {creditLimitExceeded && (
+                <div className="flex items-center gap-2 p-2 bg-destructive/10 rounded-lg text-destructive text-xs">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  Credit limit exceeded. Owner approval required.
+                </div>
+              )}
+              {cashierOverLimit && (
+                <div className="flex items-center gap-2 p-2 bg-destructive/10 rounded-lg text-destructive text-xs">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  Amount exceeds cashier credit limit (${creditSettings.max_cashier_credit_amount.toFixed(2)}). Requires manager/owner approval.
+                </div>
+              )}
+              {needsApproval && (
+                <div className="flex items-center gap-2 p-2 bg-warning/10 rounded-lg text-warning text-xs">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  Owner approval required for all credit sales.
+                </div>
+              )}
+            </div>
+          )}
+
+          <Button
+            className="w-full"
+            disabled={cart.length === 0 || (isCreditSale && creditBlocked)}
+            onClick={confirmSale}
+          >
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            {isCreditSale && (isOwner || isManager) ? "Approve & Record Credit Sale" : "Confirm Sale"}
           </Button>
         </>
       ) : (
@@ -304,7 +439,9 @@ export default function Sales() {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm font-medium tabular-nums">${Number(s.total_amount).toFixed(2)}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{s.payment_method.replace("_", " ")} · {format(new Date(s.created_at), "MMM d, HH:mm")}</p>
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {s.payment_method.replace("_", " ")} · {format(new Date(s.created_at), "MMM d, HH:mm")}
+                    </p>
                   </div>
                   {s.is_voided ? (
                     <span className="text-xs text-destructive font-medium">Voided</span>
@@ -334,12 +471,8 @@ export default function Sales() {
         onClose={() => setScannerOpen(false)}
         onScan={(code) => {
           const found = products.find(p => p.sku === code);
-          if (found) {
-            addToCart(found);
-            toast.success(`Added: ${found.name}`);
-          } else {
-            toast.error(`No product with SKU "${code}"`);
-          }
+          if (found) { addToCart(found); toast.success(`Added: ${found.name}`); }
+          else toast.error(`No product with SKU "${code}"`);
         }}
       />
     </div>
