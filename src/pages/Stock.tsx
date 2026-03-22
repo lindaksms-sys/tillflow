@@ -34,6 +34,7 @@ export default function Stock() {
   const [adjQty, setAdjQty] = useState("");
   const [adjNote, setAdjNote] = useState("");
   const [history, setHistory] = useState<any[]>([]);
+  const [receiptOpen, setReceiptOpen] = useState(false);
 
   useEffect(() => { if (user) load(); }, [user]);
 
