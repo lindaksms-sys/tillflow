@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useBusiness } from "@/hooks/useBusiness";
 import PageHeader from "@/components/PageHeader";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -22,6 +23,7 @@ type StockRow = {
 
 export default function Stock() {
   const { user } = useAuth();
+  const { businessId } = useBusiness();
   const [items, setItems] = useState<StockRow[]>([]);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -53,6 +55,7 @@ export default function Stock() {
     const qty = Number(adjQty);
     await supabase.from("stock_adjustments").insert({
       product_id: selectedProduct.product_id, type: adjType, quantity: qty, note: adjNote || null,
+      business_id: businessId,
     });
 
     const newQty = adjType === "restock"

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useBusiness } from "@/hooks/useBusiness";
 import PageHeader from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ const expenseCategories = ["Restock", "Rent", "Wages", "Utilities", "Marketing",
 
 export default function Expenses() {
   const { user } = useAuth();
+  const { businessId } = useBusiness();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ category: "Restock", amount: "", note: "" });
@@ -42,10 +44,11 @@ export default function Expenses() {
   };
 
   const save = async () => {
-    if (!user || !form.amount) return;
+    if (!user || !form.amount || !businessId) return;
     await supabase.from("expenses").insert({
       user_id: user.id, category: form.category,
       amount: Number(form.amount), note: form.note || null,
+      business_id: businessId,
     });
     toast.success("Expense logged");
     setDialogOpen(false);

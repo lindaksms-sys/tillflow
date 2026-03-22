@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type Product = {
   id: string;
   user_id: string;
+  business_id: string | null;
   name: string;
   sku: string | null;
   category: string;

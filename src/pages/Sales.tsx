@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useBusiness } from "@/hooks/useBusiness";
 import PageHeader from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ function formatLineLabel(item: CartItem): string | null {
 
 export default function Sales() {
   const { user } = useAuth();
+  const { businessId } = useBusiness();
   const [tab, setTab] = useState<"pos" | "history">("pos");
   const [products, setProducts] = useState<Product[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -118,9 +120,9 @@ export default function Sales() {
   const total = cart.reduce((s, c) => s + calcLineTotal(c).total, 0);
 
   const confirmSale = async () => {
-    if (!user || cart.length === 0) return;
+    if (!user || cart.length === 0 || !businessId) return;
     const { data: sale, error } = await supabase.from("sales").insert({
-      user_id: user.id, payment_method: paymentMethod, total_amount: total, is_voided: false,
+      user_id: user.id, payment_method: paymentMethod, total_amount: total, is_voided: false, business_id: businessId,
     }).select().single();
 
     if (error || !sale) { toast.error("Failed"); return; }

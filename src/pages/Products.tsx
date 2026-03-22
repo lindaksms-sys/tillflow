@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useBusiness } from "@/hooks/useBusiness";
 import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ const units = ["piece", "kg", "litre", "bottle", "pack", "carton", "dozen"];
 
 export default function Products() {
   const { user } = useAuth();
+  const { businessId } = useBusiness();
   const [products, setProducts] = useState<Product[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [search, setSearch] = useState("");
@@ -53,12 +55,12 @@ export default function Products() {
   };
 
   const save = async () => {
-    if (!user || !form.name) return;
+    if (!user || !form.name || !businessId) return;
     const payload = {
       name: form.name, sku: form.sku || null, category: form.category,
       cost_price: Number(form.cost_price) || 0, selling_price: Number(form.selling_price) || 0,
       unit: form.unit, reorder_threshold: Number(form.reorder_threshold) || 5,
-      business_type: form.business_type, user_id: user.id,
+      business_type: form.business_type, user_id: user.id, business_id: businessId,
     };
 
     if (editing) {
@@ -91,6 +93,7 @@ export default function Products() {
       label: promoForm.label,
       bundle_qty: qty,
       bundle_price: price,
+      business_id: businessId,
     } as any);
     toast.success("Promotion added");
     setPromoForm({ label: "", bundle_qty: "", bundle_price: "" });

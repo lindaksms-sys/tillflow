@@ -3,7 +3,9 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { BusinessProvider, useBusiness } from "@/hooks/useBusiness";
 import Login from "./pages/Login";
+import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Stock from "./pages/Stock";
@@ -16,9 +18,10 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { businessId, loading: bizLoading } = useBusiness();
 
-  if (loading) {
+  if (authLoading || (user && bizLoading)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -27,6 +30,7 @@ function AppRoutes() {
   }
 
   if (!user) return <Login />;
+  if (!businessId) return <Onboarding />;
 
   return (
     <>
@@ -49,9 +53,11 @@ const App = () => (
     <TooltipProvider>
       <Sonner />
       <AuthProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <BusinessProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </BusinessProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
