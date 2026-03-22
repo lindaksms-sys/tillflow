@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useBusiness } from "@/hooks/useBusiness";
 import PageHeader from "@/components/PageHeader";
 import { DollarSign, TrendingDown, TrendingUp, Tag } from "lucide-react";
+import InstallPrompt from "@/components/InstallPrompt";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { format, subDays, startOfDay, endOfDay, startOfMonth } from "date-fns";
 
