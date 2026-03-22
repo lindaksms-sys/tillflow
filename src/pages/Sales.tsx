@@ -475,26 +475,73 @@ export default function Sales() {
         </>
       ) : (
         <>
-          <Input type="date" className="input-dark mb-3 h-9" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
+          <div className="space-y-2 mb-3">
+            <Input type="date" className="input-dark h-9" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
+            <div className="flex gap-2">
+              <Select value={customerFilter} onValueChange={setCustomerFilter}>
+                <SelectTrigger className="h-9 flex-1 text-sm">
+                  <SelectValue placeholder="All Customers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Customers</SelectItem>
+                  {creditCustomers.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(isOwner || isManager) && (
+                <Select value={staffFilter} onValueChange={setStaffFilter}>
+                  <SelectTrigger className="h-9 flex-1 text-sm">
+                    <SelectValue placeholder="All Staff" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Staff</SelectItem>
+                    {staffMembers.map(m => (
+                      <SelectItem key={m.user_id} value={m.user_id}>{m.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+
+          {customerSummary && customerFilter !== "all" && (
+            <div className="glass-card p-3 mb-3 flex justify-between text-xs">
+              <span>Purchased: <strong className="tabular-nums">${customerSummary.purchased.toFixed(2)}</strong></span>
+              <span>Outstanding: <strong className="tabular-nums text-destructive">${customerSummary.outstanding.toFixed(2)}</strong></span>
+              <span>Paid: <strong className="tabular-nums text-primary">${customerSummary.paid.toFixed(2)}</strong></span>
+            </div>
+          )}
+
           <div className="space-y-2">
             {salesHistory.map(s => (
-              <div key={s.id} className={`glass-card p-3 ${s.is_voided ? "opacity-50" : ""}`}>
+              <button
+                key={s.id}
+                onClick={() => setReceiptSale(s)}
+                className={`w-full glass-card p-3 text-left transition-colors hover:bg-muted/50 ${s.is_voided ? "opacity-50" : ""}`}
+              >
                 <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-sm font-medium tabular-nums">${Number(s.total_amount).toFixed(2)}</p>
-                    <p className="text-xs text-muted-foreground capitalize">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Receipt className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <p className="text-sm font-medium tabular-nums">${Number(s.total_amount).toFixed(2)}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground capitalize mt-0.5">
                       {s.payment_method.replace("_", " ")} · {format(new Date(s.created_at), "MMM d, HH:mm")}
                     </p>
                   </div>
                   {s.is_voided ? (
                     <span className="text-xs text-destructive font-medium">Voided</span>
-                  ) : (
-                    <button onClick={() => voidSale(s.id)} className="p-2 text-muted-foreground hover:text-destructive">
+                  ) : (isOwner || isManager) ? (
+                    <button
+                      onClick={e => { e.stopPropagation(); voidSale(s.id); }}
+                      className="p-2 text-muted-foreground hover:text-destructive"
+                    >
                       <RotateCcw className="w-4 h-4" />
                     </button>
-                  )}
+                  ) : null}
                 </div>
-              </div>
+              </button>
             ))}
             {salesHistory.length === 0 && <p className="text-center text-muted-foreground text-sm py-8">No sales</p>}
           </div>
@@ -517,6 +564,12 @@ export default function Sales() {
           if (found) { addToCart(found); toast.success(`Added: ${found.name}`); }
           else toast.error(`No product with SKU "${code}"`);
         }}
+      />
+
+      <ReceiptModal
+        open={!!receiptSale}
+        onClose={() => setReceiptSale(null)}
+        sale={receiptSale}
       />
     </div>
   );
