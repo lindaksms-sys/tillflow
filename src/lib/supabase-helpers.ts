@@ -58,8 +58,20 @@ export type Expense = {
   created_at: string;
 };
 
+export type Promotion = {
+  id: string;
+  product_id: string;
+  label: string;
+  bundle_qty: number;
+  bundle_price: number;
+  is_active: boolean;
+  created_at: string;
+};
+
 export type CartItem = {
   product: Product;
   quantity: number;
   discount: number;
+  usePromo?: boolean;
+  promo?: Promotion | null;
 };

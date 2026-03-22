@@ -4,17 +4,40 @@ import { useAuth } from "@/hooks/useAuth";
 import PageHeader from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Plus, Minus, ShoppingCart, X, CreditCard, Banknote, Smartphone, RotateCcw, ScanLine, Keyboard } from "lucide-react";
+import { Search, Plus, Minus, ShoppingCart, X, CreditCard, Banknote, Smartphone, RotateCcw, ScanLine, Keyboard, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import type { Product, CartItem } from "@/lib/supabase-helpers";
+import type { Product, CartItem, Promotion } from "@/lib/supabase-helpers";
 import BarcodeScanner from "@/components/BarcodeScanner";
+
+/** Calculate line total with bundle pricing */
+function calcLineTotal(item: CartItem): { total: number; bundleCount: number; remainder: number } {
+  if (item.usePromo && item.promo) {
+    const { bundle_qty, bundle_price } = item.promo;
+    const bundleCount = Math.floor(item.quantity / bundle_qty);
+    const remainder = item.quantity % bundle_qty;
+    const total = bundleCount * bundle_price + remainder * item.product.selling_price - item.discount;
+    return { total, bundleCount, remainder };
+  }
+  return { total: item.product.selling_price * item.quantity - item.discount, bundleCount: 0, remainder: item.quantity };
+}
+
+function formatLineLabel(item: CartItem): string | null {
+  if (!item.usePromo || !item.promo) return null;
+  const { bundleCount, remainder } = calcLineTotal(item);
+  const parts: string[] = [];
+  if (bundleCount > 0) parts.push(`${bundleCount} × ${item.promo.label}`);
+  if (remainder > 0) parts.push(`${remainder} × unit`);
+  return parts.join(" + ");
+}
 
 export default function Sales() {
   const { user } = useAuth();
   const [tab, setTab] = useState<"pos" | "history">("pos");
   const [products, setProducts] = useState<Product[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -31,6 +54,8 @@ export default function Sales() {
   const loadProducts = async () => {
     const { data } = await supabase.from("products").select("*").order("name");
     setProducts(data || []);
+    const { data: promos } = await supabase.from("promotions").select("*").eq("is_active", true);
+    setPromotions(promos || []);
   };
 
   const loadHistory = async () => {
@@ -44,7 +69,12 @@ export default function Sales() {
 
   useEffect(() => { if (user) loadHistory(); }, [dateFilter]);
 
+  const getActivePromo = (productId: string): Promotion | null => {
+    return promotions.find(p => p.product_id === productId) || null;
+  };
+
   const addToCart = (p: Product) => {
+    const promo = getActivePromo(p.id);
     setCart(prev => {
       const idx = prev.findIndex(c => c.product.id === p.id);
       if (idx >= 0) {
@@ -52,7 +82,7 @@ export default function Sales() {
         next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
         return next;
       }
-      return [...prev, { product: p, quantity: 1, discount: 0 }];
+      return [...prev, { product: p, quantity: 1, discount: 0, usePromo: !!promo, promo }];
     });
   };
 
@@ -60,6 +90,14 @@ export default function Sales() {
     setCart(prev => {
       const next = [...prev];
       next[idx] = { ...next[idx], quantity: Math.max(1, next[idx].quantity + delta) };
+      return next;
+    });
+  };
+
+  const togglePromo = (idx: number) => {
+    setCart(prev => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], usePromo: !next[idx].usePromo };
       return next;
     });
   };
@@ -77,7 +115,7 @@ export default function Sales() {
     setDiscountValue("");
   };
 
-  const total = cart.reduce((s, c) => s + (c.product.selling_price * c.quantity) - c.discount, 0);
+  const total = cart.reduce((s, c) => s + calcLineTotal(c).total, 0);
 
   const confirmSale = async () => {
     if (!user || cart.length === 0) return;
@@ -87,11 +125,16 @@ export default function Sales() {
 
     if (error || !sale) { toast.error("Failed"); return; }
 
-    const items = cart.map(c => ({
-      sale_id: sale.id, product_id: c.product.id, quantity: c.quantity,
-      unit_price: c.product.selling_price, discount_amount: c.discount,
-    }));
-    await supabase.from("sale_items").insert(items);
+    const items = cart.map(c => {
+      const line = calcLineTotal(c);
+      const effectiveUnitPrice = c.quantity > 0 ? (line.total + c.discount) / c.quantity : c.product.selling_price;
+      return {
+        sale_id: sale.id, product_id: c.product.id, quantity: c.quantity,
+        unit_price: effectiveUnitPrice, discount_amount: c.discount,
+        promo_label: c.usePromo && c.promo ? formatLineLabel(c) || c.promo.label : null,
+      };
+    });
+    await supabase.from("sale_items").insert(items as any);
 
     // Deduct stock
     for (const c of cart) {
@@ -109,7 +152,6 @@ export default function Sales() {
   };
 
   const voidSale = async (saleId: string) => {
-    // Restore stock
     const { data: items } = await supabase.from("sale_items").select("product_id, quantity").eq("sale_id", saleId);
     for (const item of items || []) {
       const { data: sl } = await supabase.from("stock_levels").select("quantity").eq("product_id", item.product_id).single();
@@ -172,33 +214,59 @@ export default function Sales() {
 
           {search && (
             <div className="glass-card mb-3 max-h-40 overflow-y-auto divide-y divide-border">
-              {filteredProducts.slice(0, 8).map(p => (
-                <button key={p.id} onClick={() => { addToCart(p); setSearch(""); }} className="w-full flex justify-between p-3 hover:bg-muted/50 transition-colors text-left">
-                  <span className="text-sm">{p.name}</span>
-                  <span className="text-sm text-muted-foreground">${Number(p.selling_price).toFixed(2)}</span>
-                </button>
-              ))}
+              {filteredProducts.slice(0, 8).map(p => {
+                const promo = getActivePromo(p.id);
+                return (
+                  <button key={p.id} onClick={() => { addToCart(p); setSearch(""); }} className="w-full flex justify-between items-center p-3 hover:bg-muted/50 transition-colors text-left">
+                    <div>
+                      <span className="text-sm">{p.name}</span>
+                      {promo && <Badge variant="secondary" className="ml-2 text-[10px]"><Tag className="w-3 h-3 mr-0.5" />{promo.label}</Badge>}
+                    </div>
+                    <span className="text-sm text-muted-foreground">${Number(p.selling_price).toFixed(2)}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
 
           {cart.length > 0 && (
             <div className="glass-card p-3 mb-3 space-y-2">
-              {cart.map((c, i) => (
-                <div key={i} className="flex items-center justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate">{c.product.name}</p>
-                    {c.discount > 0 && <p className="text-[10px] text-warning">-${c.discount.toFixed(2)} discount</p>}
+              {cart.map((c, i) => {
+                const line = calcLineTotal(c);
+                const promoLabel = formatLineLabel(c);
+                return (
+                  <div key={i} className="space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">{c.product.name}</p>
+                        {c.discount > 0 && <p className="text-[10px] text-warning">-${c.discount.toFixed(2)} discount</p>}
+                        {promoLabel && <p className="text-[10px] text-primary">{c.product.name} ×{c.quantity} ({promoLabel})</p>}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => updateQty(i, -1)} className="p-1 text-muted-foreground hover:text-foreground"><Minus className="w-3.5 h-3.5" /></button>
+                        <span className="text-sm w-6 text-center tabular-nums">{c.quantity}</span>
+                        <button onClick={() => updateQty(i, 1)} className="p-1 text-muted-foreground hover:text-foreground"><Plus className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => { setDiscountValue(String(c.discount || "")); setDiscountDialog({ index: i }); }} className="text-[10px] text-muted-foreground underline ml-1">%</button>
+                        <button onClick={() => removeFromCart(i)} className="p-1 text-muted-foreground hover:text-destructive ml-1"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <span className="text-sm font-medium tabular-nums w-16 text-right">${line.total.toFixed(2)}</span>
+                    </div>
+                    {c.promo && (
+                      <button
+                        onClick={() => togglePromo(i)}
+                        className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                          c.usePromo
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border text-muted-foreground"
+                        }`}
+                      >
+                        <Tag className="w-3 h-3" />
+                        {c.promo.label} {c.usePromo ? "✓" : "off"}
+                      </button>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => updateQty(i, -1)} className="p-1 text-muted-foreground hover:text-foreground"><Minus className="w-3.5 h-3.5" /></button>
-                    <span className="text-sm w-6 text-center tabular-nums">{c.quantity}</span>
-                    <button onClick={() => updateQty(i, 1)} className="p-1 text-muted-foreground hover:text-foreground"><Plus className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => { setDiscountValue(String(c.discount || "")); setDiscountDialog({ index: i }); }} className="text-[10px] text-muted-foreground underline ml-1">%</button>
-                    <button onClick={() => removeFromCart(i)} className="p-1 text-muted-foreground hover:text-destructive ml-1"><X className="w-3.5 h-3.5" /></button>
-                  </div>
-                  <span className="text-sm font-medium tabular-nums w-16 text-right">${((c.product.selling_price * c.quantity) - c.discount).toFixed(2)}</span>
-                </div>
-              ))}
+                );
+              })}
               <div className="border-t border-border pt-2 flex justify-between items-center">
                 <span className="text-sm font-semibold">Total</span>
                 <span className="text-lg font-bold tabular-nums">${total.toFixed(2)}</span>

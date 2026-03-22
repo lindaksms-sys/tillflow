@@ -83,11 +83,50 @@ export type Database = {
         }
         Relationships: []
       }
+      promotions: {
+        Row: {
+          bundle_price: number
+          bundle_qty: number
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          label: string
+          product_id: string
+        }
+        Insert: {
+          bundle_price: number
+          bundle_qty: number
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          label: string
+          product_id: string
+        }
+        Update: {
+          bundle_price?: number
+          bundle_qty?: number
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          label?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_items: {
         Row: {
           discount_amount: number
           id: string
           product_id: string
+          promo_label: string | null
           quantity: number
           sale_id: string
           unit_price: number
@@ -96,6 +135,7 @@ export type Database = {
           discount_amount?: number
           id?: string
           product_id: string
+          promo_label?: string | null
           quantity: number
           sale_id: string
           unit_price: number
@@ -104,6 +144,7 @@ export type Database = {
           discount_amount?: number
           id?: string
           product_id?: string
+          promo_label?: string | null
           quantity?: number
           sale_id?: string
           unit_price?: number
