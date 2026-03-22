@@ -2,4 +2,4 @@ project_id = "cqlsebivxxngxxmysmdx"
 
 [auth]
 site_url = "https://tillflow.creativehauz.space"
-additional_redirect_urls = ["https://tillflow.creativehauz.space/accept-invite"]
+additional_redirect_urls = ["https://tillflow.creativehauz.space", "https://tillflow.creativehauz.space/**", "https://tillflow.creativehauz.space/accept-invite"]
