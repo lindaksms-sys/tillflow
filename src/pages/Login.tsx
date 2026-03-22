@@ -34,11 +34,20 @@ export default function Login() {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     setError("");
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result?.error) {
-      setError(result.error.message || "Google sign-in failed");
+    try {
+      console.log("Starting Google sign-in...");
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+        extraParams: { prompt: "select_account" },
+      });
+      console.log("Google sign-in result:", result);
+      if (result?.error) {
+        setError(result.error.message || "Google sign-in failed");
+      }
+    } catch (err: any) {
+      console.error("Google sign-in error:", err);
+      setError(err?.message || "Google sign-in failed. Please try again.");
+    } finally {
       setGoogleLoading(false);
     }
   };
