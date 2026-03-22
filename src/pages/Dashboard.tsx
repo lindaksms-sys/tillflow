@@ -213,6 +213,7 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+      <InstallPrompt />
     </div>
   );
 }
