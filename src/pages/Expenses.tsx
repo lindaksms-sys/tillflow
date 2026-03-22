@@ -16,8 +16,17 @@ import { format, startOfMonth, endOfMonth } from "date-fns";
 const expenseCategories = ["Restock", "Rent", "Wages", "Utilities", "Marketing", "Other"];
 
 export default function Expenses() {
+  const { verified, verifying } = useRequireRole(['owner', 'manager']);
   const { user } = useAuth();
   const { businessId } = useBusiness();
+
+  if (verifying || !verified) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
   const [expenses, setExpenses] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ category: "Restock", amount: "", note: "" });
