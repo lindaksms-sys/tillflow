@@ -168,5 +168,8 @@ export default function Stock() {
         </DialogContent>
       </Dialog>
     </div>
+
+      <ReceiptScanner open={receiptOpen} onOpenChange={setReceiptOpen} onComplete={load} />
+    </div>
   );
 }
