@@ -40,6 +40,16 @@ function AppRoutes() {
   const { user, loading: authLoading } = useAuth();
   const { businessId, plan, trialEndsAt, loading: bizLoading } = useBusiness();
 
+  // Accept-invite must be accessible without auth
+  const pathname = window.location.pathname;
+  if (pathname === "/accept-invite") {
+    return (
+      <Routes>
+        <Route path="/accept-invite" element={<AcceptInvite />} />
+      </Routes>
+    );
+  }
+
   if (authLoading || (user && bizLoading)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
