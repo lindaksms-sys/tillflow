@@ -11,81 +11,9 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const [signUpSuccess, setSignUpSuccess] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    setSignUpSuccess(false);
-    const { error } = isSignUp ? await signUp(email, password) : await signIn(email, password);
-    if (error) {
-      setError(error.message);
-    } else if (isSignUp) {
-      setSignUpSuccess(true);
-    }
-    setLoading(false);
-  };
-
-  const buildGoogleFallbackUrl = () => {
-    const state =
-      typeof crypto !== "undefined" && "getRandomValues" in crypto
-        ? [...crypto.getRandomValues(new Uint8Array(16))]
-            .map((byte) => byte.toString(16).padStart(2, "0"))
-            .join("")
-        : `${Date.now()}`;
-
-    const params = new URLSearchParams({
-      provider: "google",
-      redirect_uri: window.location.origin,
-      prompt: "select_account",
-      state,
-    });
-
-    return `/~oauth/initiate?${params.toString()}`;
-  };
-
-  const handleGoogleSignIn = async () => {
-    setGoogleLoading(true);
-    setError("");
-
-    const forceRedirectFallback = () => {
-      window.location.assign(buildGoogleFallbackUrl());
-    };
-
-    try {
-      console.log("Starting Google sign-in...");
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
-        extraParams: { prompt: "select_account" },
-      });
-      console.log("Google sign-in result:", result);
-
-      if (result?.error) {
-        const message = result.error.message || "Google sign-in failed";
-        const lowerMessage = message.toLowerCase();
-
-        if (
-          lowerMessage.includes("popup") ||
-          lowerMessage.includes("cancelled") ||
-          lowerMessage.includes("legacy_flow")
-        ) {
-          forceRedirectFallback();
-          return;
-        }
-
-        setError(message);
-      }
-    } catch (err: unknown) {
-      console.error("Google sign-in error:", err);
-      setError(err instanceof Error ? err.message : "Google sign-in failed. Please try again.");
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
