@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import PageHeader from "@/components/PageHeader";
-import { DollarSign, TrendingDown, TrendingUp, BarChart3 } from "lucide-react";
+import { DollarSign, TrendingDown, TrendingUp, Tag } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { format, subDays, startOfDay, endOfDay, startOfMonth } from "date-fns";
 
@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [todayExpenses, setTodayExpenses] = useState(0);
   const [chartData, setChartData] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [promoSummary, setPromoSummary] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -69,17 +70,18 @@ export default function Dashboard() {
     // Top 5 products this month
     const { data: saleItems } = await supabase
       .from("sale_items")
-      .select("product_id, quantity, unit_price, sale_id");
+      .select("product_id, quantity, unit_price, sale_id, promo_label");
 
-    // Filter by month through sales
     const { data: monthSales } = await supabase
       .from("sales").select("id")
       .eq("is_voided", false)
       .gte("created_at", monthStart);
 
     const monthSaleIds = new Set(monthSales?.map(s => s.id) || []);
+    const monthItems = saleItems?.filter(si => monthSaleIds.has(si.sale_id)) || [];
+
     const productTotals: Record<string, number> = {};
-    saleItems?.filter(si => monthSaleIds.has(si.sale_id)).forEach(si => {
+    monthItems.forEach(si => {
       productTotals[si.product_id] = (productTotals[si.product_id] || 0) + si.quantity;
     });
 
@@ -93,10 +95,33 @@ export default function Dashboard() {
       margin: prodMap[id] ? Math.round(((prodMap[id].selling_price - prodMap[id].cost_price) / prodMap[id].selling_price) * 100) : 0,
     })));
 
+    // Promotions summary — active deals + revenue this month
+    const { data: promos } = await supabase
+      .from("promotions")
+      .select("label, product_id, bundle_qty, bundle_price, is_active")
+      .eq("is_active", true);
+
+    const promoRevMap: Record<string, number> = {};
+    monthItems.forEach(si => {
+      if (si.promo_label) {
+        promoRevMap[si.promo_label] = (promoRevMap[si.promo_label] || 0) +
+          (Number(si.unit_price) * si.quantity);
+      }
+    });
+
+    setPromoSummary(
+      (promos || []).map(p => ({
+        label: p.label,
+        productName: prodMap[p.product_id]?.name || "Unknown",
+        revenue: promoRevMap[p.label] || 0,
+      }))
+    );
+
     setLoading(false);
   };
 
   const netProfit = todayRevenue - todayExpenses;
+  const totalPromoRevenue = promoSummary.reduce((s, p) => s + p.revenue, 0);
 
   return (
     <div className="page-container">
@@ -136,7 +161,7 @@ export default function Dashboard() {
       </div>
 
       {topProducts.length > 0 && (
-        <div className="glass-card p-4">
+        <div className="glass-card p-4 mb-6">
           <h2 className="text-sm font-semibold mb-3">Top Sellers This Month</h2>
           <div className="space-y-3">
             {topProducts.map((p, i) => (
@@ -151,6 +176,33 @@ export default function Dashboard() {
                     p.margin >= 20 ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive"
                   }`}>{p.margin}%</span>
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {promoSummary.length > 0 && (
+        <div className="glass-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Tag className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-semibold">Active Promotions</h2>
+            </div>
+            <span className="text-xs font-medium text-primary tabular-nums">
+              ${totalPromoRevenue.toFixed(2)} this month
+            </span>
+          </div>
+          <div className="space-y-3">
+            {promoSummary.map((p, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm truncate">{p.productName}</p>
+                  <p className="text-xs text-muted-foreground">{p.label}</p>
+                </div>
+                <span className="text-xs font-medium tabular-nums ml-3">
+                  ${p.revenue.toFixed(2)}
+                </span>
               </div>
             ))}
           </div>
