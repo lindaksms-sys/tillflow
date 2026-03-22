@@ -11,13 +11,19 @@ export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [signUpSuccess, setSignUpSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSignUpSuccess(false);
     const { error } = isSignUp ? await signUp(email, password) : await signIn(email, password);
-    if (error) setError(error.message);
+    if (error) {
+      setError(error.message);
+    } else if (isSignUp) {
+      setSignUpSuccess(true);
+    }
     setLoading(false);
   };
 
