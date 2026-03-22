@@ -86,13 +86,20 @@ export default function ReceiptScanner({ open, onOpenChange, onComplete }: Props
     const mimeType = file.type || "image/jpeg";
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error("You must be logged in to scan receipts");
+        setStep("capture");
+        return;
+      }
+
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scan-receipt`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({ image_base64: base64, mime_type: mimeType }),
         }

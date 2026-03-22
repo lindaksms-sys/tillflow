@@ -602,6 +602,15 @@ export type Database = {
         }
         Returns: string
       }
+      record_credit_sale: {
+        Args: {
+          _amount: number
+          _customer_id: string
+          _due_date?: string
+          _sale_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
