@@ -23,6 +23,7 @@ type StockRow = {
 
 export default function Stock() {
   const { user } = useAuth();
+  const { businessId } = useBusiness();
   const [items, setItems] = useState<StockRow[]>([]);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
