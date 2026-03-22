@@ -5,7 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Plus, Minus, ShoppingCart, X, CreditCard, Banknote, Smartphone, RotateCcw, ScanLine } from "lucide-react";
+import { Search, Plus, Minus, ShoppingCart, X, CreditCard, Banknote, Smartphone, RotateCcw, ScanLine, Keyboard } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import type { Product, CartItem } from "@/lib/supabase-helpers";
@@ -22,6 +22,8 @@ export default function Sales() {
   const [discountDialog, setDiscountDialog] = useState<{ index: number } | null>(null);
   const [discountValue, setDiscountValue] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [manualSku, setManualSku] = useState("");
+  const [showManualSku, setShowManualSku] = useState(false);
   const [dateFilter, setDateFilter] = useState("");
 
   useEffect(() => { if (user) { loadProducts(); loadHistory(); } }, [user]);
@@ -143,7 +145,30 @@ export default function Sales() {
               <Input className="input-dark pl-9 h-9" placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <Button size="sm" variant="outline" onClick={() => setScannerOpen(true)}><ScanLine className="w-4 h-4" /></Button>
+            <Button size="sm" variant="outline" onClick={() => setShowManualSku(v => !v)}><Keyboard className="w-4 h-4" /></Button>
           </div>
+
+          {showManualSku && (
+            <form
+              className="flex gap-2 mb-3"
+              onSubmit={e => {
+                e.preventDefault();
+                const code = manualSku.trim();
+                if (!code) return;
+                const found = products.find(p => p.sku === code);
+                if (found) {
+                  addToCart(found);
+                  toast.success(`Added: ${found.name}`);
+                } else {
+                  toast.error(`No product with SKU "${code}"`);
+                }
+                setManualSku("");
+              }}
+            >
+              <Input className="input-dark h-9 flex-1" placeholder="Enter SKU manually…" value={manualSku} onChange={e => setManualSku(e.target.value)} autoFocus />
+              <Button size="sm" type="submit">Go</Button>
+            </form>
+          )}
 
           {search && (
             <div className="glass-card mb-3 max-h-40 overflow-y-auto divide-y divide-border">
