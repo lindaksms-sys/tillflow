@@ -20,6 +20,7 @@ import BottomNav from "./components/BottomNav";
 import TrialBanner from "./components/TrialBanner";
 import TrialExpired from "./components/TrialExpired";
 import AcceptInvite from "./pages/AcceptInvite";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,12 +41,19 @@ function AppRoutes() {
   const { user, loading: authLoading } = useAuth();
   const { businessId, plan, trialEndsAt, loading: bizLoading } = useBusiness();
 
-  // Accept-invite must be accessible without auth
+  // Public routes accessible without auth
   const pathname = window.location.pathname;
   if (pathname.startsWith("/accept-invite")) {
     return (
       <Routes>
         <Route path="/accept-invite" element={<AcceptInvite />} />
+      </Routes>
+    );
+  }
+  if (pathname.startsWith("/reset-password")) {
+    return (
+      <Routes>
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
     );
   }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BarChart3, Package } from "lucide-react";
@@ -12,6 +13,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [signUpSuccess, setSignUpSuccess] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,17 +67,52 @@ export default function Login() {
               </p>
             </div>
           )}
+          {forgotSent && (
+            <div className="bg-primary/10 border border-primary/20 rounded-md p-3 text-sm text-foreground">
+              <p className="font-medium">Password reset email sent</p>
+              <p className="text-muted-foreground mt-1">
+                Check your inbox (and spam folder) at <strong>{email}</strong> for a link to reset your password.
+              </p>
+            </div>
+          )}
           {error && <p className="text-destructive text-sm">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "..." : isSignUp ? "Create Account" : "Sign In"}
           </Button>
           <button
             type="button"
-            onClick={() => { setIsSignUp(!isSignUp); setError(""); }}
+            onClick={() => { setIsSignUp(!isSignUp); setError(""); setSignUpSuccess(false); }}
             className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
           </button>
+          {!isSignUp && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (!email) {
+                  setError("Enter your email address first");
+                  return;
+                }
+                setLoading(true);
+                setError("");
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                  redirectTo: `${window.location.origin}/reset-password`,
+                });
+                setLoading(false);
+                if (error) {
+                  setError(error.message);
+                } else {
+                  setSignUpSuccess(false);
+                  setError("");
+                  setForgotSent(true);
+                }
+              }}
+              className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Forgot password?
+            </button>
+          )}
         </form>
       </div>
     </div>
