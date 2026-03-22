@@ -52,7 +52,7 @@ export default function Login() {
             <BarChart3 className="w-8 h-8" />
           </div>
           <h1 className="text-3xl font-bold text-foreground" style={{ lineHeight: '1.1' }}>TillFlow</h1>
-          <p className="text-muted-foreground text-sm">Smart business management for retail & bar</p>
+          <p className="text-muted-foreground text-sm">Know your stock. Own your profit.</p>
         </div>
 
         <div className="glass-card p-6 space-y-4">
