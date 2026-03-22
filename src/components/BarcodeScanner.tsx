@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,35 +11,43 @@ interface BarcodeScannerProps {
 }
 
 export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScannerProps) {
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  const isScanningRef = useRef(false);
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const [scanKey, setScanKey] = useState(0);
 
+  // Increment scanKey each time modal opens to force fresh DOM element
   useEffect(() => {
-    if (!open) return;
+    if (open) {
+      setScanKey((k) => k + 1);
+    }
+  }, [open]);
+
+  // Initialize scanner when scanKey changes and modal is open
+  useEffect(() => {
+    if (!open || scanKey === 0) return;
 
     let cancelled = false;
 
     const startScanner = async () => {
-      // Small delay to ensure the DOM element is mounted
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 400));
       if (cancelled) return;
 
-      const html5QrCode = new Html5Qrcode("barcode-reader");
-      scannerRef.current = html5QrCode;
+      const instance = new Html5Qrcode("barcode-reader");
+      html5QrCodeRef.current = instance;
 
       try {
-        await html5QrCode.start(
+        await instance.start(
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: 250, height: 150 } },
-          (decodedText) => {
-            if (isScanningRef.current) return;
-            isScanningRef.current = true;
+          async (decodedText) => {
+            try {
+              await instance.stop();
+              instance.clear();
+            } catch (e) {
+              console.warn("Scanner stop error on scan:", e);
+            }
+            html5QrCodeRef.current = null;
             onScan(decodedText);
-            html5QrCode.stop().then(() => {
-              scannerRef.current = null;
-              isScanningRef.current = false;
-              onClose();
-            });
+            onClose();
           },
           undefined
         );
@@ -52,13 +60,22 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
 
     return () => {
       cancelled = true;
-      isScanningRef.current = false;
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-        scannerRef.current = null;
+      const ref = html5QrCodeRef.current;
+      if (ref) {
+        (async () => {
+          try {
+            if (ref.isScanning) {
+              await ref.stop();
+            }
+            ref.clear();
+          } catch (e) {
+            console.warn("Scanner cleanup error:", e);
+          }
+        })();
+        html5QrCodeRef.current = null;
       }
     };
-  }, [open]);
+  }, [scanKey, open]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -69,7 +86,7 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
           </DialogTitle>
         </DialogHeader>
 
-        <div id="barcode-reader" className="min-h-64 w-full" />
+        <div id="barcode-reader" key={scanKey} style={{ minHeight: "250px" }} className="w-full" />
 
         <div className="p-4 pt-2">
           <Button variant="outline" className="w-full" onClick={onClose}>
