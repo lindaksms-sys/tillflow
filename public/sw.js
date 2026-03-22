@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tillflow-v1';
+const CACHE_NAME = 'tillflow-v2';
 const ASSETS = ['/', '/index.html', '/offline.html'];
 
 self.addEventListener('install', (e) => {
@@ -20,8 +20,8 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
 
-  // Never cache OAuth redirects
-  if (url.pathname.startsWith('/~oauth')) return;
+  // Never intercept OAuth/auth routes
+  if (url.pathname.startsWith('/~oauth') || url.pathname.startsWith('/auth/v1')) return;
 
   // For navigation requests, try network first, fallback to offline page
   if (e.request.mode === 'navigate') {
