@@ -1,41 +1,42 @@
 
 
-## Adding Google Sign-In and Phone Authentication to TillFlow
+## Fix: Google Sign-In Button Not Responding on Published App
 
-### Google Sign-In — Viable and straightforward
+### Root Cause
+The `handleGoogleSignIn` function in `Login.tsx` has no `try/catch` around the `lovable.auth.signInWithOAuth` call. If the underlying `@lovable.dev/cloud-auth-js` library throws an exception (e.g., network error, configuration issue on the published domain), the error is silently swallowed, `googleLoading` stays `false` (or gets stuck `true` after first click), and the button appears dead.
 
-Lovable Cloud has **managed Google OAuth** built in, so no API keys or external setup are needed. This is fully viable.
+Additionally, there's no console logging to help diagnose what's happening.
 
-**Steps:**
-1. Run the **Configure Social Login** tool to generate the Lovable auth module for Google
-2. Add a "Sign in with Google" button to the Login page that calls `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })`
-3. Ensure the onboarding flow still triggers for new Google users (they won't have a business yet)
+### Fix (1 file)
 
-### Phone Number Authentication — Not viable
+**`src/pages/Login.tsx`** — Update `handleGoogleSignIn`:
+- Wrap the entire OAuth call in a `try/catch` block
+- Add `console.log` statements to trace the flow (what `result` comes back)
+- Ensure `setGoogleLoading(false)` runs in a `finally` block so the button never gets stuck disabled
+- Add `prompt: "select_account"` to `extraParams` to force the Google account picker (helps when there's a stale session)
 
-Phone/SMS authentication (OTP via text message) is **not supported** in Lovable Cloud. This would require a third-party SMS provider (like Twilio) and custom edge function infrastructure to handle OTP verification — significant complexity for uncertain benefit.
+```typescript
+const handleGoogleSignIn = async () => {
+  setGoogleLoading(true);
+  setError("");
+  try {
+    console.log("Starting Google sign-in...");
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+      extraParams: { prompt: "select_account" },
+    });
+    console.log("Google sign-in result:", result);
+    if (result?.error) {
+      setError(result.error.message || "Google sign-in failed");
+    }
+  } catch (err: any) {
+    console.error("Google sign-in error:", err);
+    setError(err?.message || "Google sign-in failed. Please try again.");
+  } finally {
+    setGoogleLoading(false);
+  }
+};
+```
 
-**Recommendation:** Skip phone auth and focus on Google sign-in, which covers the "easy signup" use case well.
-
----
-
-### Implementation Plan
-
-#### 1. Configure Google OAuth module
-- Use the Configure Social Login tool to scaffold `src/integrations/lovable/` with the Google provider
-
-#### 2. Update Login page
-- Add a "Sign in with Google" button with the Google icon
-- Place it above the email/password form with an "or" divider
-- On click: call `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })`
-- Handle loading state during OAuth redirect
-
-#### 3. Handle new Google users in onboarding
-- The existing flow already redirects users without a business to `/onboarding` — verify this works for OAuth signups too
-- Google provides `user.user_metadata.full_name` automatically, so pre-fill it during onboarding
-
-#### Technical details
-- No API keys needed — Lovable Cloud manages Google OAuth credentials automatically
-- The `@lovable.dev/cloud-auth-js` package will be installed by the scaffold tool
-- PWA consideration: the service worker's `sw.js` uses a basic fetch handler that shouldn't interfere, but if issues arise we may need to add `/~oauth` to a denylist
+This will either fix the silent failure or surface the actual error message on screen and in console logs so we can diagnose the exact issue.
 
