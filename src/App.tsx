@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
@@ -12,14 +12,31 @@ import Stock from "./pages/Stock";
 import Sales from "./pages/Sales";
 import Expenses from "./pages/Expenses";
 import Insights from "./pages/Insights";
+import Staff from "./pages/Staff";
+import Settings from "./pages/Settings";
+import Admin from "./pages/Admin";
 import BottomNav from "./components/BottomNav";
+import TrialBanner from "./components/TrialBanner";
+import TrialExpired from "./components/TrialExpired";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+function RoleGuard({ allowed, children }: { allowed: string[]; children: React.ReactNode }) {
+  const { role } = useBusiness();
+  if (!role || !allowed.includes(role)) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+function AdminGuard({ children }: { children: React.ReactNode }) {
+  const { isAdmin } = useBusiness();
+  if (!isAdmin) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 function AppRoutes() {
   const { user, loading: authLoading } = useAuth();
-  const { businessId, loading: bizLoading } = useBusiness();
+  const { businessId, plan, trialEndsAt, loading: bizLoading } = useBusiness();
 
   if (authLoading || (user && bizLoading)) {
     return (
@@ -32,15 +49,24 @@ function AppRoutes() {
   if (!user) return <Login />;
   if (!businessId) return <Onboarding />;
 
+  // Check trial expiration
+  if (plan === "trial" && trialEndsAt && new Date(trialEndsAt) < new Date()) {
+    return <TrialExpired />;
+  }
+
   return (
     <>
+      <TrialBanner />
       <Routes>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/products" element={<Products />} />
+        <Route path="/products" element={<RoleGuard allowed={["owner", "manager"]}><Products /></RoleGuard>} />
         <Route path="/stock" element={<Stock />} />
         <Route path="/sales" element={<Sales />} />
-        <Route path="/expenses" element={<Expenses />} />
-        <Route path="/insights" element={<Insights />} />
+        <Route path="/expenses" element={<RoleGuard allowed={["owner", "manager"]}><Expenses /></RoleGuard>} />
+        <Route path="/insights" element={<RoleGuard allowed={["owner", "manager"]}><Insights /></RoleGuard>} />
+        <Route path="/staff" element={<RoleGuard allowed={["owner"]}><Staff /></RoleGuard>} />
+        <Route path="/settings" element={<RoleGuard allowed={["owner"]}><Settings /></RoleGuard>} />
+        <Route path="/admin" element={<AdminGuard><Admin /></AdminGuard>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <BottomNav />
