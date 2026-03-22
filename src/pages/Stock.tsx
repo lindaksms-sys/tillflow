@@ -87,9 +87,15 @@ export default function Stock() {
     <div className="page-container">
       <PageHeader title="Stock" />
 
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input className="input-dark pl-9 h-9" placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="flex gap-2 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input className="input-dark pl-9 h-9" placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setReceiptOpen(true)}>
+          <ScanLine className="w-4 h-4" />
+          <span className="hidden sm:inline">Scan Receipt</span>
+        </Button>
       </div>
 
       <div className="space-y-2">
