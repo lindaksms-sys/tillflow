@@ -16,6 +16,7 @@ const expenseCategories = ["Restock", "Rent", "Wages", "Utilities", "Marketing",
 
 export default function Expenses() {
   const { user } = useAuth();
+  const { businessId } = useBusiness();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ category: "Restock", amount: "", note: "" });
