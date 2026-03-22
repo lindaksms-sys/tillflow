@@ -31,7 +31,18 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
       await new Promise((r) => setTimeout(r, 400));
       if (cancelled) return;
 
-      const instance = new Html5Qrcode("barcode-reader");
+      const instance = new Html5Qrcode("barcode-reader", {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.ITF,
+        ],
+        verbose: false,
+      });
       html5QrCodeRef.current = instance;
 
       try {
