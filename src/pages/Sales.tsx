@@ -36,6 +36,7 @@ function formatLineLabel(item: CartItem): string | null {
 
 export default function Sales() {
   const { user } = useAuth();
+  const { businessId } = useBusiness();
   const [tab, setTab] = useState<"pos" | "history">("pos");
   const [products, setProducts] = useState<Product[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
