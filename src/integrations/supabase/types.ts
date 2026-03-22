@@ -54,45 +54,216 @@ export type Database = {
       }
       business_profiles: {
         Row: {
+          allow_cashier_record_payments: boolean
           country: string
           created_at: string
           currency: string
+          default_credit_limit: number
           id: string
           is_active: boolean
           logo_url: string | null
+          max_cashier_credit_amount: number
           name: string
           owner_id: string
           plan: string
+          require_owner_approval_credit: boolean
           trial_ends_at: string | null
           type: string
         }
         Insert: {
+          allow_cashier_record_payments?: boolean
           country?: string
           created_at?: string
           currency?: string
+          default_credit_limit?: number
           id?: string
           is_active?: boolean
           logo_url?: string | null
+          max_cashier_credit_amount?: number
           name: string
           owner_id: string
           plan?: string
+          require_owner_approval_credit?: boolean
           trial_ends_at?: string | null
           type: string
         }
         Update: {
+          allow_cashier_record_payments?: boolean
           country?: string
           created_at?: string
           currency?: string
+          default_credit_limit?: number
           id?: string
           is_active?: boolean
           logo_url?: string | null
+          max_cashier_credit_amount?: number
           name?: string
           owner_id?: string
           plan?: string
+          require_owner_approval_credit?: boolean
           trial_ends_at?: string | null
           type?: string
         }
         Relationships: []
+      }
+      credit_customers: {
+        Row: {
+          business_id: string | null
+          created_at: string | null
+          created_by: string
+          credit_limit: number
+          full_name: string
+          id: string
+          id_number: string | null
+          is_active: boolean | null
+          phone: string | null
+          total_outstanding: number
+        }
+        Insert: {
+          business_id?: string | null
+          created_at?: string | null
+          created_by: string
+          credit_limit?: number
+          full_name: string
+          id?: string
+          id_number?: string | null
+          is_active?: boolean | null
+          phone?: string | null
+          total_outstanding?: number
+        }
+        Update: {
+          business_id?: string | null
+          created_at?: string | null
+          created_by?: string
+          credit_limit?: number
+          full_name?: string
+          id?: string
+          id_number?: string | null
+          is_active?: boolean | null
+          phone?: string | null
+          total_outstanding?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_customers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_payments: {
+        Row: {
+          amount: number
+          business_id: string | null
+          created_at: string | null
+          credit_sale_id: string
+          id: string
+          payment_method: string
+          received_by: string
+        }
+        Insert: {
+          amount: number
+          business_id?: string | null
+          created_at?: string | null
+          credit_sale_id: string
+          id?: string
+          payment_method: string
+          received_by: string
+        }
+        Update: {
+          amount?: number
+          business_id?: string | null
+          created_at?: string | null
+          credit_sale_id?: string
+          id?: string
+          payment_method?: string
+          received_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_payments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_payments_credit_sale_id_fkey"
+            columns: ["credit_sale_id"]
+            isOneToOne: false
+            referencedRelation: "credit_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_sales: {
+        Row: {
+          amount: number
+          amount_paid: number
+          approved_by: string | null
+          balance: number | null
+          business_id: string | null
+          created_at: string | null
+          created_by: string
+          customer_id: string
+          due_date: string | null
+          id: string
+          sale_id: string | null
+          status: string | null
+        }
+        Insert: {
+          amount: number
+          amount_paid?: number
+          approved_by?: string | null
+          balance?: number | null
+          business_id?: string | null
+          created_at?: string | null
+          created_by: string
+          customer_id: string
+          due_date?: string | null
+          id?: string
+          sale_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          amount?: number
+          amount_paid?: number
+          approved_by?: string | null
+          balance?: number | null
+          business_id?: string | null
+          created_at?: string | null
+          created_by?: string
+          customer_id?: string
+          due_date?: string | null
+          id?: string
+          sale_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_sales_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "credit_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_sales_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expenses: {
         Row: {
