@@ -145,7 +145,7 @@ export default function Sales() {
     if (bp) setCreditSettings(bp as any);
   };
 
-  useEffect(() => { if (user && businessId) loadHistory(); }, [dateFilter]);
+  useEffect(() => { if (user && businessId) loadHistory(); }, [dateFilter, customerFilter, staffFilter]);
 
   const getActivePromo = (productId: string): Promotion | null => {
     return promotions.find(p => p.product_id === productId) || null;
