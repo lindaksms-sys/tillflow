@@ -98,6 +98,9 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
         </DialogHeader>
 
         <div id="barcode-reader" key={scanKey} style={{ minHeight: "250px" }} className="w-full" />
+        <p className="text-xs text-muted-foreground text-center px-4 pb-1">
+          Tip: Hold the bottle steady and align the barcode horizontally with the green box
+        </p>
 
         <div className="p-4 pt-2">
           <Button variant="outline" className="w-full" onClick={onClose}>
