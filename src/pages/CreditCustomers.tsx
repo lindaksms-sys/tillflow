@@ -176,30 +176,18 @@ export default function CreditCustomers() {
     if (!sale) return;
     if (amt > sale.balance) { toast.error("Amount exceeds outstanding balance"); return; }
 
-    // Insert payment
-    const { error: payErr } = await supabase.from("credit_payments").insert({
-      business_id: businessId,
-      credit_sale_id: paymentSaleId,
-      amount: amt,
-      payment_method: paymentMethod,
-      received_by: user.id,
+    const { data, error } = await supabase.rpc("record_credit_payment", {
+      p_credit_sale_id: paymentSaleId,
+      p_business_id: businessId,
+      p_amount: amt,
+      p_payment_method: paymentMethod,
+      p_received_by: user.id,
     });
-    if (payErr) { toast.error(payErr.message); return; }
 
-    // Update credit_sale amount_paid and status
-    const newPaid = sale.amount_paid + amt;
-    const newStatus = newPaid >= sale.amount ? "paid" : "partial";
-    await supabase.from("credit_sales").update({
-      amount_paid: newPaid,
-      status: newStatus,
-    }).eq("id", paymentSaleId);
+    if (error) { toast.error(error.message); return; }
 
-    // Update customer total_outstanding
     if (selectedCustomer) {
       const newOutstanding = Math.max(0, selectedCustomer.total_outstanding - amt);
-      await supabase.from("credit_customers").update({
-        total_outstanding: newOutstanding,
-      }).eq("id", selectedCustomer.id);
       setSelectedCustomer({ ...selectedCustomer, total_outstanding: newOutstanding });
     }
 
