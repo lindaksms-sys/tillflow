@@ -93,8 +93,39 @@ export default function Sales() {
     if (dateFilter) {
       q = q.gte("created_at", dateFilter + "T00:00:00").lte("created_at", dateFilter + "T23:59:59");
     }
+    if (staffFilter !== "all") {
+      q = q.eq("user_id", staffFilter);
+    }
     const { data } = await q;
-    setSalesHistory(data || []);
+    let sales = data || [];
+
+    // If customer filter is active, filter by credit_sales
+    if (customerFilter !== "all") {
+      const { data: cs } = await supabase
+        .from("credit_sales")
+        .select("sale_id, amount, amount_paid")
+        .eq("business_id", businessId!)
+        .eq("customer_id", customerFilter);
+      const saleIds = new Set((cs || []).map(c => c.sale_id).filter(Boolean));
+      sales = sales.filter(s => saleIds.has(s.id));
+      const purchased = (cs || []).reduce((s, c) => s + Number(c.amount), 0);
+      const paid = (cs || []).reduce((s, c) => s + Number(c.amount_paid), 0);
+      setCustomerSummary({ purchased, outstanding: purchased - paid, paid });
+    } else {
+      setCustomerSummary(null);
+    }
+
+    setSalesHistory(sales);
+  };
+
+  const loadStaffMembers = async () => {
+    const { data } = await supabase
+      .from("business_members")
+      .select("user_id, full_name")
+      .eq("business_id", businessId!)
+      .eq("is_active", true)
+      .order("full_name");
+    setStaffMembers(data || []);
   };
 
   const loadCreditData = async () => {
