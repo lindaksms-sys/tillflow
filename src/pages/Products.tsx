@@ -87,8 +87,35 @@ export default function Products() {
           <Input className="input-dark pl-9 h-9" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <Button size="sm" variant="outline" onClick={() => setScannerOpen(true)}><ScanLine className="w-4 h-4" /></Button>
+        <Button size="sm" variant="outline" onClick={() => setShowManualSku(v => !v)}><Keyboard className="w-4 h-4" /></Button>
         <Button size="sm" onClick={openNew}><Plus className="w-4 h-4" /></Button>
       </div>
+
+      {showManualSku && (
+        <form
+          className="flex gap-2 mb-3"
+          onSubmit={e => {
+            e.preventDefault();
+            const code = manualSku.trim();
+            if (!code) return;
+            const found = products.find(p => p.sku === code);
+            if (found) {
+              openEdit(found);
+              toast.info(`Found: ${found.name}`);
+            } else {
+              setEditing(null);
+              setForm({ name: "", sku: code, category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail" });
+              setDialogOpen(true);
+              toast.info(`SKU "${code}" not found — add new product`);
+            }
+            setManualSku("");
+            setShowManualSku(false);
+          }}
+        >
+          <Input className="input-dark h-9 flex-1" placeholder="Enter SKU manually…" value={manualSku} onChange={e => setManualSku(e.target.value)} autoFocus />
+          <Button size="sm" type="submit">Go</Button>
+        </form>
+      )}
 
       <div className="flex gap-2 mb-4">
         <Select value={filterBiz} onValueChange={setFilterBiz}>
