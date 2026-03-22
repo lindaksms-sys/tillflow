@@ -422,6 +422,15 @@ export type Database = {
     Functions: {
       get_user_business_id: { Args: never; Returns: string }
       get_user_role: { Args: never; Returns: string }
+      onboard_business: {
+        Args: {
+          _country?: string
+          _currency?: string
+          _name: string
+          _type: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
