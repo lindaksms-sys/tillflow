@@ -85,9 +85,12 @@ export default function CreditCustomers() {
   };
 
   const loadCustomers = async () => {
+    const columns = isOwner || isManager
+      ? "*"
+      : "id, full_name, credit_limit, total_outstanding, is_active, created_at, created_by";
     const { data } = await supabase
       .from("credit_customers")
-      .select("*")
+      .select(columns)
       .eq("business_id", businessId!)
       .order("full_name");
     setCustomers((data as CreditCustomer[]) || []);
