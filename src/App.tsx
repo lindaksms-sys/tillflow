@@ -19,6 +19,7 @@ import CreditCustomers from "./pages/CreditCustomers";
 import BottomNav from "./components/BottomNav";
 import TrialBanner from "./components/TrialBanner";
 import TrialExpired from "./components/TrialExpired";
+import AcceptInvite from "./pages/AcceptInvite";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
