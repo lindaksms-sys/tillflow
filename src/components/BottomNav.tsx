@@ -1,18 +1,24 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Package, Layers, ShoppingCart, Receipt, Lightbulb } from "lucide-react";
+import { LayoutDashboard, Package, Layers, ShoppingCart, Receipt, Lightbulb, Users, Settings } from "lucide-react";
+import { useBusiness } from "@/hooks/useBusiness";
 
-const tabs = [
-  { path: "/", icon: LayoutDashboard, label: "Home" },
-  { path: "/products", icon: Package, label: "Products" },
-  { path: "/stock", icon: Layers, label: "Stock" },
-  { path: "/sales", icon: ShoppingCart, label: "Sales" },
-  { path: "/expenses", icon: Receipt, label: "Expenses" },
-  { path: "/insights", icon: Lightbulb, label: "Insights" },
+const allTabs = [
+  { path: "/", icon: LayoutDashboard, label: "Home", roles: ["owner", "manager", "cashier"] },
+  { path: "/products", icon: Package, label: "Products", roles: ["owner", "manager"] },
+  { path: "/stock", icon: Layers, label: "Stock", roles: ["owner", "manager", "cashier"] },
+  { path: "/sales", icon: ShoppingCart, label: "Sales", roles: ["owner", "manager", "cashier"] },
+  { path: "/expenses", icon: Receipt, label: "Expenses", roles: ["owner", "manager"] },
+  { path: "/insights", icon: Lightbulb, label: "Insights", roles: ["owner", "manager"] },
+  { path: "/staff", icon: Users, label: "Staff", roles: ["owner"] },
+  { path: "/settings", icon: Settings, label: "Settings", roles: ["owner"] },
 ];
 
 export default function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { role } = useBusiness();
+
+  const tabs = allTabs.filter(t => role && t.roles.includes(role));
 
   return (
     <nav className="bottom-nav">
@@ -23,7 +29,7 @@ export default function BottomNav() {
             <button
               key={path}
               onClick={() => navigate(path)}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${
+              className={`flex flex-col items-center gap-0.5 px-1.5 py-1 transition-colors ${
                 active ? "text-primary" : "text-muted-foreground"
               }`}
             >
