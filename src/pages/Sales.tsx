@@ -79,7 +79,7 @@ export default function Sales() {
     require_owner_approval_credit: false,
   });
 
-  useEffect(() => { if (user && businessId) { loadProducts(); loadHistory(); loadCreditData(); } }, [user, businessId]);
+  useEffect(() => { if (user && businessId) { loadProducts(); loadHistory(); loadCreditData(); loadStaffMembers(); } }, [user, businessId]);
 
   const loadProducts = async () => {
     const { data } = await supabase.from("products").select("*").eq("business_id", businessId!).order("name");
