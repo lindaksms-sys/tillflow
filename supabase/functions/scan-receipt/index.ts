@@ -43,11 +43,23 @@ serve(async (req) => {
     }
 
     const { image_base64, mime_type } = await req.json();
-    if (!image_base64) {
-      return new Response(JSON.stringify({ error: "Missing image_base64" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+
+    // Validate image presence and size (~10MB base64 ≈ 13.4M chars)
+    if (!image_base64 || typeof image_base64 !== "string" || image_base64.length > 13_400_000) {
+      return new Response(
+        JSON.stringify({ error: "Invalid file. Please upload a JPG, PNG or WebP image under 10MB" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate MIME type against allowlist
+    const allowedMimes = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+    const safeMime = allowedMimes.includes(mime_type) ? mime_type : "image/jpeg";
+    if (mime_type && !allowedMimes.includes(mime_type)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid file. Please upload a JPG, PNG or WebP image under 10MB" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const prompt = `You are a receipt parser. Extract all products and quantities from this supplier receipt. Return ONLY valid JSON, nothing else: { "supplier": "string or null", "date": "string or null", "items": [ { "name": "string", "quantity": number, "unit_price": number or null } ] }`;
