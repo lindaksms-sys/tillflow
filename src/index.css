@@ -83,4 +83,11 @@
   .input-dark {
     @apply bg-muted border-border text-foreground placeholder:text-muted-foreground;
   }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
