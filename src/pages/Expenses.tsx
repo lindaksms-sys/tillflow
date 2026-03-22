@@ -20,13 +20,6 @@ export default function Expenses() {
   const { user } = useAuth();
   const { businessId } = useBusiness();
 
-  if (verifying || !verified) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
   const [expenses, setExpenses] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ category: "Restock", amount: "", note: "" });
@@ -34,7 +27,7 @@ export default function Expenses() {
   const [dateFilter, setDateFilter] = useState("");
   const [monthlySummary, setMonthlySummary] = useState<Record<string, number>>({});
 
-  useEffect(() => { if (user) load(); }, [user, filterCat, dateFilter]);
+  useEffect(() => { if (user && verified) load(); }, [user, filterCat, dateFilter, verified]);
 
   const load = async () => {
     let q = supabase.from("expenses").select("*").order("created_at", { ascending: false });
@@ -43,7 +36,6 @@ export default function Expenses() {
     const { data } = await q;
     setExpenses(data || []);
 
-    // Monthly totals
     const now = new Date();
     const ms = startOfMonth(now).toISOString();
     const me = endOfMonth(now).toISOString();
@@ -65,6 +57,14 @@ export default function Expenses() {
     setForm({ category: "Restock", amount: "", note: "" });
     load();
   };
+
+  if (verifying || !verified) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const monthTotal = Object.values(monthlySummary).reduce((s, v) => s + v, 0);
 

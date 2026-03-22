@@ -14,19 +14,11 @@ export default function Insights() {
   const { user } = useAuth();
   const { businessId } = useBusiness();
 
-  if (verifying || !verified) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
   const [deadStock, setDeadStock] = useState<InsightItem[]>([]);
   const [lowMargin, setLowMargin] = useState<InsightItem[]>([]);
   const [highWastage, setHighWastage] = useState<InsightItem[]>([]);
   const [shrinkage, setShrinkage] = useState<InsightItem[]>([]);
 
-  // Credit overview state
   const [totalOutstanding, setTotalOutstanding] = useState(0);
   const [overLimitCustomers, setOverLimitCustomers] = useState<InsightItem[]>([]);
   const [creditVsCashRatio, setCreditVsCashRatio] = useState<string>("");
@@ -34,7 +26,7 @@ export default function Insights() {
   const [topDebtors, setTopDebtors] = useState<InsightItem[]>([]);
   const [staffCreditActivity, setStaffCreditActivity] = useState<InsightItem[]>([]);
 
-  useEffect(() => { if (user && businessId) { load(); loadCreditOverview(); } }, [user, businessId]);
+  useEffect(() => { if (user && businessId && verified) { load(); loadCreditOverview(); } }, [user, businessId, verified]);
 
   const load = async () => {
     const { data: products } = await supabase.from("products").select("*").eq("business_id", businessId!);
@@ -208,6 +200,14 @@ export default function Insights() {
       setStaffCreditActivity(activity);
     }
   };
+
+  if (verifying || !verified) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const Section = ({ title, icon: Icon, items, valueLabel }: { title: string; icon: any; items: InsightItem[]; valueLabel: string }) => (
     <div className="glass-card p-4 mb-4">
