@@ -55,12 +55,12 @@ export default function Products() {
   };
 
   const save = async () => {
-    if (!user || !form.name) return;
+    if (!user || !form.name || !businessId) return;
     const payload = {
       name: form.name, sku: form.sku || null, category: form.category,
       cost_price: Number(form.cost_price) || 0, selling_price: Number(form.selling_price) || 0,
       unit: form.unit, reorder_threshold: Number(form.reorder_threshold) || 5,
-      business_type: form.business_type, user_id: user.id,
+      business_type: form.business_type, user_id: user.id, business_id: businessId,
     };
 
     if (editing) {
