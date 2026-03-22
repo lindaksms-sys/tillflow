@@ -93,6 +93,7 @@ export default function Products() {
       label: promoForm.label,
       bundle_qty: qty,
       bundle_price: price,
+      business_id: businessId,
     } as any);
     toast.success("Promotion added");
     setPromoForm({ label: "", bundle_qty: "", bundle_price: "" });

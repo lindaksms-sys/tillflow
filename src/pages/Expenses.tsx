@@ -44,10 +44,11 @@ export default function Expenses() {
   };
 
   const save = async () => {
-    if (!user || !form.amount) return;
+    if (!user || !form.amount || !businessId) return;
     await supabase.from("expenses").insert({
       user_id: user.id, category: form.category,
       amount: Number(form.amount), note: form.note || null,
+      business_id: businessId,
     });
     toast.success("Expense logged");
     setDialogOpen(false);

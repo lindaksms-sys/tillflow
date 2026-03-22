@@ -120,9 +120,9 @@ export default function Sales() {
   const total = cart.reduce((s, c) => s + calcLineTotal(c).total, 0);
 
   const confirmSale = async () => {
-    if (!user || cart.length === 0) return;
+    if (!user || cart.length === 0 || !businessId) return;
     const { data: sale, error } = await supabase.from("sales").insert({
-      user_id: user.id, payment_method: paymentMethod, total_amount: total, is_voided: false,
+      user_id: user.id, payment_method: paymentMethod, total_amount: total, is_voided: false, business_id: businessId,
     }).select().single();
 
     if (error || !sale) { toast.error("Failed"); return; }

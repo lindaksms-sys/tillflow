@@ -55,6 +55,7 @@ export default function Stock() {
     const qty = Number(adjQty);
     await supabase.from("stock_adjustments").insert({
       product_id: selectedProduct.product_id, type: adjType, quantity: qty, note: adjNote || null,
+      business_id: businessId,
     });
 
     const newQty = adjType === "restock"
