@@ -11,13 +11,19 @@ export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [signUpSuccess, setSignUpSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSignUpSuccess(false);
     const { error } = isSignUp ? await signUp(email, password) : await signIn(email, password);
-    if (error) setError(error.message);
+    if (error) {
+      setError(error.message);
+    } else if (isSignUp) {
+      setSignUpSuccess(true);
+    }
     setLoading(false);
   };
 
@@ -51,6 +57,14 @@ export default function Login() {
             required
             minLength={6}
           />
+          {signUpSuccess && (
+            <div className="bg-primary/10 border border-primary/20 rounded-md p-3 text-sm text-foreground">
+              <p className="font-medium">Check your email</p>
+              <p className="text-muted-foreground mt-1">
+                We've sent a confirmation link to <strong>{email}</strong>. Please check your inbox (and spam folder) to verify your account before signing in.
+              </p>
+            </div>
+          )}
           {error && <p className="text-destructive text-sm">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "..." : isSignUp ? "Create Account" : "Sign In"}
