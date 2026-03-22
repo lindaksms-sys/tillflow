@@ -29,8 +29,8 @@ export default function Login() {
             <Package className="w-8 h-8" />
             <BarChart3 className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground" style={{ lineHeight: '1.1' }}>StockIQ</h1>
-          <p className="text-muted-foreground text-sm">Smart inventory for your business</p>
+          <h1 className="text-3xl font-bold text-foreground" style={{ lineHeight: '1.1' }}>TillFlow</h1>
+          <p className="text-muted-foreground text-sm">Smart business management for retail & bar</p>
         </div>
 
         <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">

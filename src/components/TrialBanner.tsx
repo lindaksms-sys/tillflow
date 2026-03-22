@@ -16,8 +16,8 @@ export default function TrialBanner() {
       <div className="flex items-center gap-2 text-sm">
         <Clock className="w-4 h-4 text-accent" />
         <span className="text-accent">
-          Free trial — <strong className="tabular-nums">{daysLeft} day{daysLeft !== 1 ? "s" : ""}</strong> remaining.{" "}
-          <button className="underline font-medium hover:text-foreground transition-colors">Upgrade →</button>
+          You're on a TillFlow free trial — <strong className="tabular-nums">{daysLeft} day{daysLeft !== 1 ? "s" : ""}</strong> remaining.{" "}
+          <button className="underline font-medium hover:text-foreground transition-colors">Upgrade to keep access →</button>
         </span>
       </div>
       <button onClick={() => setDismissed(true)} className="p-1 text-accent hover:text-foreground">

@@ -14,7 +14,7 @@ export default function TrialExpired() {
         </div>
         <h1 className="text-2xl font-bold text-foreground" style={{ lineHeight: "1.1" }}>Trial Expired</h1>
         <p className="text-muted-foreground text-sm">
-          Your free trial has ended. Upgrade your plan to continue using StockIQ.
+          Your TillFlow free trial has ended. Upgrade your plan to continue.
         </p>
         <div className="space-y-3">
           <Button className="w-full">Upgrade Now</Button>
