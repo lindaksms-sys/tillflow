@@ -255,6 +255,10 @@ export default function Sales() {
     }
 
     toast.success(`${isCreditSale ? "Credit " : ""}Sale: $${total.toFixed(2)}`);
+
+    // Show receipt immediately after sale
+    setReceiptSale({ ...sale, sale_items: items.map((item, i) => ({ ...item, products: cart[i].product })) });
+
     setCart([]);
     setSelectedCreditCustomer(null);
     setCreditSearch("");
