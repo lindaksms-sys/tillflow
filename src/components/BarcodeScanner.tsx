@@ -48,7 +48,7 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
       try {
         await instance.start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 150 } },
+          { fps: 15, qrbox: { width: 300, height: 100 }, aspectRatio: 1.5 },
           async (decodedText) => {
             try {
               await instance.stop();
