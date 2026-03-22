@@ -349,7 +349,7 @@ export default function ReceiptModal({ open, onClose, sale }: Props) {
 
             {/* Footer */}
             <p className="text-center text-[10px] text-muted-foreground pt-1">
-              Thank you for your business — {businessName}
+              Powered by TillFlow
             </p>
 
             {/* Actions */}
