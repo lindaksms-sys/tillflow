@@ -31,9 +31,32 @@ export default function Login() {
     setLoading(false);
   };
 
+  const buildGoogleFallbackUrl = () => {
+    const state =
+      typeof crypto !== "undefined" && "getRandomValues" in crypto
+        ? [...crypto.getRandomValues(new Uint8Array(16))]
+            .map((byte) => byte.toString(16).padStart(2, "0"))
+            .join("")
+        : `${Date.now()}`;
+
+    const params = new URLSearchParams({
+      provider: "google",
+      redirect_uri: window.location.origin,
+      prompt: "select_account",
+      state,
+    });
+
+    return `/~oauth/initiate?${params.toString()}`;
+  };
+
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     setError("");
+
+    const forceRedirectFallback = () => {
+      window.location.assign(buildGoogleFallbackUrl());
+    };
+
     try {
       console.log("Starting Google sign-in...");
       const result = await lovable.auth.signInWithOAuth("google", {
@@ -41,12 +64,25 @@ export default function Login() {
         extraParams: { prompt: "select_account" },
       });
       console.log("Google sign-in result:", result);
+
       if (result?.error) {
-        setError(result.error.message || "Google sign-in failed");
+        const message = result.error.message || "Google sign-in failed";
+        const lowerMessage = message.toLowerCase();
+
+        if (
+          lowerMessage.includes("popup") ||
+          lowerMessage.includes("cancelled") ||
+          lowerMessage.includes("legacy_flow")
+        ) {
+          forceRedirectFallback();
+          return;
+        }
+
+        setError(message);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Google sign-in error:", err);
-      setError(err?.message || "Google sign-in failed. Please try again.");
+      setError(err instanceof Error ? err.message : "Google sign-in failed. Please try again.");
     } finally {
       setGoogleLoading(false);
     }
