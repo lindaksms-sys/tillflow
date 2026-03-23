@@ -50,6 +50,14 @@ Deno.serve(async (req) => {
 
     if (payError) throw payError;
 
+    // Get all clients for dashboard
+    const { data: clients, error: clientsError } = await supabase
+      .from("clients")
+      .select("*")
+      .order("signup_date", { ascending: false });
+
+    if (clientsError) throw clientsError;
+
     // Aggregate plan breakdown
     const byPlan: Record<string, number> = { trial: 0, pro: 0, expired: 0 };
     const now = new Date();
@@ -96,6 +104,7 @@ Deno.serve(async (req) => {
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       ),
       recent_payments: recentPayments || [],
+      clients: clients || [],
     };
 
     return new Response(JSON.stringify(response), {
