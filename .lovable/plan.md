@@ -1,52 +1,59 @@
 
 
-## Create `admin-stats` Edge Function for External Dashboard
+## Implement `clients` Table for Dashboard Sync
 
-### What it does
-A secure API endpoint that returns aggregated TillFlow business data (signups, plan breakdowns, recent activity). Your dashboard Lovable project calls this endpoint to display stats — no direct database access needed.
+### Overview
+Create a `clients` table that mirrors signup data for your external dashboard. Auto-populate on new signups, backfill existing businesses, and expose via `admin-stats`.
 
-### Security
-- Protected by a shared API key (stored as a secret) — not public
-- Returns only aggregated/read-only data
-- No raw user credentials exposed
+### 1. Database Migration
 
-### Steps
+**Create `clients` table:**
+- `id` uuid PK
+- `business_id` uuid (references business_profiles, unique)
+- `name` text (business name)
+- `owner` text (full name)
+- `email` text (user email)
+- `location` text (country)
+- `status` text (default `'trial'`)
+- `signup_date` date
+- `trial_end` date
+- `upgrade_date` timestamptz nullable
+- `plan` text nullable
+- `mrr` numeric default 0
+- `features` text nullable
+- RLS: admin-only read (via `saas_admin` check), no public access
 
-**1. Add a secret: `ADMIN_STATS_KEY`**
-A random API key that your dashboard will send in the `Authorization` header. Only requests with this key get data.
-
-**2. Create edge function `supabase/functions/admin-stats/index.ts`**
-- Validates `Authorization: Bearer <ADMIN_STATS_KEY>`
-- Queries `business_profiles` for:
-  - Total businesses count
-  - Breakdown by plan (trial, pro, expired)
-  - Recent signups (last 30 days with name, plan, created_at, trial_ends_at, pro_expires_at)
-  - Businesses expiring in next 7 days
-- Queries `manual_payments` for recent payment logs
-- Queries `business_members` for total user count
-- Returns JSON response
-
-**3. In your dashboard Lovable project**
-Call the endpoint:
+**Backfill existing businesses** (in same migration):
+```sql
+INSERT INTO clients (business_id, name, owner, email, location, status, signup_date, trial_end)
+SELECT bp.id, bp.name, bm.full_name, au.email, bp.country,
+  bp.plan, bp.created_at::date, (bp.trial_ends_at)::date
+FROM business_profiles bp
+JOIN business_members bm ON bm.business_id = bp.id AND bm.role = 'owner'
+JOIN auth.users au ON au.id = bp.owner_id;
 ```
-GET https://cqlsebivxxngxxmysmdx.supabase.co/functions/v1/admin-stats
-Authorization: Bearer <your-admin-stats-key>
-```
 
-### Response shape
+### 2. Update `onboard_business` DB Function
+
+Add an `INSERT INTO clients` at the end of the function, using the user's email from `auth.users`, the business name, country, and computed trial end date.
+
+### 3. Update `admin-stats` Edge Function
+
+Add a query to return all `clients` rows so your dashboard can consume them directly:
 ```json
-{
-  "totals": { "businesses": 42, "users": 78 },
-  "by_plan": { "trial": 30, "pro": 8, "expired": 4 },
-  "expiring_soon": [ { "name": "...", "pro_expires_at": "...", "days_left": 3 } ],
-  "recent_signups": [ { "name": "...", "plan": "trial", "created_at": "..." } ],
-  "recent_payments": [ { "business_id": "...", "amount": 2.99, "note": "..." } ]
-}
+{ "clients": [{ "name": "...", "owner": "...", "email": "...", ... }] }
 ```
 
-### Files
+### 4. Update Admin Page (optional sync)
+
+When admin activates Pro or extends, also update the matching `clients` row (`status`, `plan`, `upgrade_date`, `mrr`).
+
+### Files Changed
 | File | Action |
 |------|--------|
-| `supabase/functions/admin-stats/index.ts` | New edge function |
-| Secret: `ADMIN_STATS_KEY` | New — you choose the key value |
+| Migration | Create `clients` table + backfill + update `onboard_business` function |
+| `supabase/functions/admin-stats/index.ts` | Add `clients` query to response |
+| `src/pages/Admin.tsx` | Update `clients` row on Pro activation/extension |
+
+Zero disruption to existing users — purely additive.
 
