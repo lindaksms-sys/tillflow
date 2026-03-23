@@ -15,6 +15,7 @@ export default function Insights() {
   const { verified, verifying } = useRequireRole(['owner', 'manager']);
   const { user } = useAuth();
   const { businessId } = useBusiness();
+  const { isFree } = usePlanLimits();
 
   const [deadStock, setDeadStock] = useState<InsightItem[]>([]);
   const [lowMargin, setLowMargin] = useState<InsightItem[]>([]);
