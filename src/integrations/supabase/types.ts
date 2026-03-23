@@ -66,6 +66,7 @@ export type Database = {
           name: string
           owner_id: string
           plan: string
+          pro_expires_at: string | null
           require_owner_approval_credit: boolean
           trial_ends_at: string | null
           type: string
@@ -83,6 +84,7 @@ export type Database = {
           name: string
           owner_id: string
           plan?: string
+          pro_expires_at?: string | null
           require_owner_approval_credit?: boolean
           trial_ends_at?: string | null
           type: string
@@ -100,6 +102,7 @@ export type Database = {
           name?: string
           owner_id?: string
           plan?: string
+          pro_expires_at?: string | null
           require_owner_approval_credit?: boolean
           trial_ends_at?: string | null
           type?: string
@@ -296,6 +299,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "expenses_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manual_payments: {
+        Row: {
+          activated_by: string
+          amount: number
+          business_id: string
+          created_at: string
+          id: string
+          note: string | null
+        }
+        Insert: {
+          activated_by: string
+          amount: number
+          business_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          activated_by?: string
+          amount?: number
+          business_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_payments_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "business_profiles"

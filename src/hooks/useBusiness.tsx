@@ -9,6 +9,7 @@ type BusinessContextType = {
   role: string | null;
   plan: string | null;
   trialEndsAt: string | null;
+  proExpiresAt: string | null;
   currency: string | null;
   loading: boolean;
   isOwner: boolean;
@@ -29,6 +30,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<string | null>(null);
   const [plan, setPlan] = useState<string | null>(null);
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
+  const [proExpiresAt, setProExpiresAt] = useState<string | null>(null);
   const [currency, setCurrency] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -41,6 +43,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       setRole(null);
       setPlan(null);
       setTrialEndsAt(null);
+      setProExpiresAt(null);
       setCurrency(null);
       setIsAdmin(false);
       setLoading(false);
@@ -52,7 +55,6 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const loadBusiness = async () => {
     setLoading(true);
 
-    // Check admin
     const { data: adminRow } = await supabase
       .from("saas_admin")
       .select("user_id")
@@ -62,7 +64,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
 
     const { data: member } = await supabase
       .from("business_members")
-      .select("business_id, role, business_profiles(name, type, plan, trial_ends_at, currency)")
+      .select("business_id, role, business_profiles(name, type, plan, trial_ends_at, pro_expires_at, currency)")
       .eq("user_id", user!.id)
       .eq("is_active", true)
       .limit(1)
@@ -76,6 +78,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       setBusinessType(bp?.type || null);
       setPlan(bp?.plan || null);
       setTrialEndsAt(bp?.trial_ends_at || null);
+      setProExpiresAt(bp?.pro_expires_at || null);
       setCurrency(bp?.currency || null);
     } else {
       setBusinessId(null);
@@ -84,6 +87,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       setBusinessType(null);
       setPlan(null);
       setTrialEndsAt(null);
+      setProExpiresAt(null);
       setCurrency(null);
     }
     setLoading(false);
@@ -103,7 +107,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
 
   return (
     <BusinessContext.Provider value={{
-      businessId, businessName, businessType, role, plan, trialEndsAt, currency,
+      businessId, businessName, businessType, role, plan, trialEndsAt, proExpiresAt, currency,
       loading, isOwner, isManager, isCashier, isAdmin, onboard, refresh: loadBusiness,
     }}>
       {children}

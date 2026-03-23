@@ -69,8 +69,8 @@ function AppRoutes() {
   if (!user) return <Login />;
   if (!businessId) return <Onboarding />;
 
-  // Check trial expiration
-  if (plan === "trial" && trialEndsAt && new Date(trialEndsAt) < new Date()) {
+  // Check trial expiration or expired pro
+  if (plan === "expired" || (plan === "trial" && trialEndsAt && new Date(trialEndsAt) < new Date())) {
     return <TrialExpired />;
   }
 
