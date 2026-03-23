@@ -1,16 +1,27 @@
 
 
-## Fix: Staff Invite Emails Linking to Wrong Domain
+## Fix: /accept-invite Page — Force Password Setup Before Access
 
-### Root Cause
+### Problem
+The current page processes the invite token **on mount** (calling `setSession` or `verifyOtp`), which authenticates the user immediately. If they navigate away before completing the form, they're logged in without credentials and can't log back in after signing out.
 
-The edge function source code on line 84 already has the correct URL (`https://tillflow.creativehauz.space/accept-invite`), but the **deployed** version of the function is stale — it still has the old URL. Edge functions serve the last **deployed** code, not what's in the project files.
+### Solution
+Store the token on mount but **don't authenticate** until form submit. After setup, redirect to `/login` instead of dashboard.
 
-### Fix
+### Changes (1 file: `src/pages/AcceptInvite.tsx`)
 
-1. **Redeploy the `invite-staff` edge function** — this is the only step needed. The code is already correct; it just needs to be pushed to the live environment.
+1. **On mount**: Extract token from URL hash or query params, store in state. Call `signOut()` to clear any existing session. Do NOT call `setSession` or `verifyOtp` yet. If no token found, show error with redirect to `/login`.
 
-2. **Verify the auth configuration** — confirm the site URL and redirect URLs in the backend config are set to `tillflow.creativehauz.space` (already done in config.toml, but worth confirming it took effect).
+2. **Form**: Show full name, password (min 8 chars), confirm password, and "Set Up My Account" button. Match TillFlow dark theme with TF logo.
 
-No code changes required — just a redeployment.
+3. **On submit only**:
+   - Validate passwords match and min 8 chars
+   - Process token: `setSession` for hash tokens, `verifyOtp` for query tokens
+   - Call `updateUser({ password, data: { full_name } })`
+   - Update `business_members.full_name`
+   - Sign out again
+   - Show success toast: "Account created! You can now log in with your email and this password."
+   - Redirect to `/login` after 2 seconds
+
+4. **Styling**: Use TF branded logo circle at top, consistent with Login page dark theme.
 
