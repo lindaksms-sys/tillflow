@@ -115,9 +115,13 @@ export default function Staff() {
     <div className="page-container">
       <PageHeader title="Staff" />
 
-      <Button size="sm" className="mb-4" onClick={() => setDialogOpen(true)}>
-        <UserPlus className="w-4 h-4 mr-2" /> Invite Staff
-      </Button>
+      {isFree && members.length > maxStaff ? (
+        <UpgradeNudge message={`Free plan: max ${maxStaff} staff member. Upgrade for up to 10.`} className="mb-4" />
+      ) : (
+        <Button size="sm" className="mb-4" onClick={() => setDialogOpen(true)}>
+          <UserPlus className="w-4 h-4 mr-2" /> Invite Staff
+        </Button>
+      )}
 
       <div className="glass-card p-3 mb-4">
         <p className="text-xs text-muted-foreground mb-2">Role Permissions</p>

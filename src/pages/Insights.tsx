@@ -246,6 +246,15 @@ export default function Insights() {
     </div>
   );
 
+  if (isFree) {
+    return (
+      <div className="page-container">
+        <PageHeader title="Insights" />
+        <UpgradeNudge message="Insights are available on the Pro plan. Upgrade to unlock detailed analytics." fullPage />
+      </div>
+    );
+  }
+
   return (
     <div className="page-container">
       <PageHeader title="Insights" />
