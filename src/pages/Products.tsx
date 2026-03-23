@@ -21,6 +21,7 @@ const units = ["piece", "kg", "litre", "bottle", "pack", "carton", "dozen"];
 export default function Products() {
   const { user } = useAuth();
   const { businessId } = useBusiness();
+  const { isFree, maxProducts } = usePlanLimits();
   const [products, setProducts] = useState<Product[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [search, setSearch] = useState("");
