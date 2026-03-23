@@ -68,6 +68,11 @@ export default function Admin() {
       activated_by: user!.id,
     } as any);
 
+    // Sync clients table
+    await supabase.from("clients" as any)
+      .update({ status: "pro", plan: "pro", upgrade_date: new Date().toISOString(), mrr: 2.99 } as any)
+      .eq("business_id", bizId);
+
     toast.success("Pro activated for 30 days");
     setNotes((prev) => ({ ...prev, [bizId]: "" }));
     await load();
