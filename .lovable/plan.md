@@ -1,68 +1,52 @@
 
 
-## Replace Flutterwave with "Contact Sales" Upgrade Flow
+## Create `admin-stats` Edge Function for External Dashboard
 
-No Flutterwave code exists yet, so this is purely additive.
+### What it does
+A secure API endpoint that returns aggregated TillFlow business data (signups, plan breakdowns, recent activity). Your dashboard Lovable project calls this endpoint to display stats — no direct database access needed.
 
-### Database Changes (1 migration)
+### Security
+- Protected by a shared API key (stored as a secret) — not public
+- Returns only aggregated/read-only data
+- No raw user credentials exposed
 
-1. Add `pro_expires_at` column to `business_profiles` (timestamptz, nullable)
-2. Create `manual_payments` table:
-   - `id` (uuid PK), `business_id` (uuid), `amount` numeric, `note` text, `activated_by` uuid, `created_at` timestamptz
-   - RLS: admin-only read/insert (via `saas_admin` check)
+### Steps
 
-### New Components
+**1. Add a secret: `ADMIN_STATS_KEY`**
+A random API key that your dashboard will send in the `Authorization` header. Only requests with this key get data.
 
-**`src/components/UpgradeModal.tsx`**
-- Dialog with pricing info ($2.99/month) and 4 payment option cards (International Card/PayPal, Mobile Money, Bank Transfer, Other)
-- WhatsApp CTA button: `wa.me/263XXXXXXXXX?text=...` with auto-filled business name + email from `useBusiness()` and `useAuth()`
-- Email fallback: `mailto:info@creativehauz.space?subject=...&body=...`
-- Footer help text
-- Exported `useUpgradeModal` hook (open/close state) or simple props
+**2. Create edge function `supabase/functions/admin-stats/index.ts`**
+- Validates `Authorization: Bearer <ADMIN_STATS_KEY>`
+- Queries `business_profiles` for:
+  - Total businesses count
+  - Breakdown by plan (trial, pro, expired)
+  - Recent signups (last 30 days with name, plan, created_at, trial_ends_at, pro_expires_at)
+  - Businesses expiring in next 7 days
+- Queries `manual_payments` for recent payment logs
+- Queries `business_members` for total user count
+- Returns JSON response
 
-### Updated Components
+**3. In your dashboard Lovable project**
+Call the endpoint:
+```
+GET https://cqlsebivxxngxxmysmdx.supabase.co/functions/v1/admin-stats
+Authorization: Bearer <your-admin-stats-key>
+```
 
-**`src/components/TrialBanner.tsx`** — "Upgrade" button opens UpgradeModal
+### Response shape
+```json
+{
+  "totals": { "businesses": 42, "users": 78 },
+  "by_plan": { "trial": 30, "pro": 8, "expired": 4 },
+  "expiring_soon": [ { "name": "...", "pro_expires_at": "...", "days_left": 3 } ],
+  "recent_signups": [ { "name": "...", "plan": "trial", "created_at": "..." } ],
+  "recent_payments": [ { "business_id": "...", "amount": 2.99, "note": "..." } ]
+}
+```
 
-**`src/components/TrialExpired.tsx`** — "Upgrade Now" button opens UpgradeModal
-
-### Admin Page (`src/pages/Admin.tsx`) — Major Update
-
-- Add search input (filter by business name or owner email — will need to join `business_members` or query separately)
-- Per-business row shows: name, plan, `pro_expires_at`, color-coded status badge (green/yellow/red)
-- "Activate Pro" button: sets `plan = 'pro'`, `pro_expires_at = now + 30 days`, inserts into `manual_payments`
-- "Extend 30 days" button: adds 30 days to `pro_expires_at`, inserts log
-- Payment note text field per activation
-- Uses service-role via edge function or direct admin RLS (owner_id check won't work for admin — will use existing `saas_admin` policy + add UPDATE policy for admin on `business_profiles`)
-
-Need an additional RLS policy: **Admin can update all business_profiles** (currently only owner can).
-
-### Auto-Expiry — Cron Edge Function
-
-**`supabase/functions/check-plan-expiry/index.ts`**
-- Runs daily via `pg_cron`
-- Queries `business_profiles` where `plan = 'pro'` and `pro_expires_at < now()`
-- Sets `plan = 'expired'` for those businesses
-- Uses service role key
-
-### useBusiness Hook Update
-
-- Expose `proExpiresAt` from business context
-- Handle `plan === 'expired'` same as expired trial (show TrialExpired-like screen but with "Pro expired" messaging)
-
-### Files Summary
-
+### Files
 | File | Action |
 |------|--------|
-| Migration | Add `pro_expires_at`, create `manual_payments` table, add admin UPDATE policy on `business_profiles` |
-| `src/components/UpgradeModal.tsx` | New — modal with payment options + WhatsApp/email CTAs |
-| `src/components/TrialBanner.tsx` | Update — wire upgrade button to modal |
-| `src/components/TrialExpired.tsx` | Update — wire upgrade button to modal, handle expired pro |
-| `src/pages/Admin.tsx` | Major update — search, activate/extend pro, payment notes, color-coded statuses |
-| `src/hooks/useBusiness.tsx` | Add `proExpiresAt`, handle `expired` plan |
-| `supabase/functions/check-plan-expiry/index.ts` | New — daily cron to downgrade expired pro plans |
-| pg_cron setup | Schedule daily invocation |
-
-### Question needed
-- What WhatsApp number should the CTA link to?
+| `supabase/functions/admin-stats/index.ts` | New edge function |
+| Secret: `ADMIN_STATS_KEY` | New — you choose the key value |
 
