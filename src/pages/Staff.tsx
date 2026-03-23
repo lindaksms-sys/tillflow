@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useBusiness } from "@/hooks/useBusiness";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import UpgradeNudge from "@/components/UpgradeNudge";
 import { useRequireRole } from "@/hooks/useRequireRole";
 import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,7 @@ const roleColors: Record<string, string> = {
 export default function Staff() {
   const { verified, verifying } = useRequireRole(['owner']);
   const { businessId } = useBusiness();
+  const { isFree, maxStaff } = usePlanLimits();
 
   const [members, setMembers] = useState<Member[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -112,9 +115,13 @@ export default function Staff() {
     <div className="page-container">
       <PageHeader title="Staff" />
 
-      <Button size="sm" className="mb-4" onClick={() => setDialogOpen(true)}>
-        <UserPlus className="w-4 h-4 mr-2" /> Invite Staff
-      </Button>
+      {isFree && members.length > maxStaff ? (
+        <UpgradeNudge message={`Free plan: max ${maxStaff} staff member. Upgrade for up to 10.`} className="mb-4" />
+      ) : (
+        <Button size="sm" className="mb-4" onClick={() => setDialogOpen(true)}>
+          <UserPlus className="w-4 h-4 mr-2" /> Invite Staff
+        </Button>
+      )}
 
       <div className="glass-card p-3 mb-4">
         <p className="text-xs text-muted-foreground mb-2">Role Permissions</p>

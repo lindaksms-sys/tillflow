@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBusiness } from "@/hooks/useBusiness";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import UpgradeNudge from "@/components/UpgradeNudge";
 import { useRequireRole } from "@/hooks/useRequireRole";
 import PageHeader from "@/components/PageHeader";
 import { AlertTriangle, TrendingDown, PackageX, ShieldAlert, UserCheck, DollarSign } from "lucide-react";
@@ -13,6 +15,7 @@ export default function Insights() {
   const { verified, verifying } = useRequireRole(['owner', 'manager']);
   const { user } = useAuth();
   const { businessId } = useBusiness();
+  const { isFree } = usePlanLimits();
 
   const [deadStock, setDeadStock] = useState<InsightItem[]>([]);
   const [lowMargin, setLowMargin] = useState<InsightItem[]>([]);
@@ -242,6 +245,15 @@ export default function Insights() {
       )}
     </div>
   );
+
+  if (isFree) {
+    return (
+      <div className="page-container">
+        <PageHeader title="Insights" />
+        <UpgradeNudge message="Insights are available on the Pro plan. Upgrade to unlock detailed analytics." fullPage />
+      </div>
+    );
+  }
 
   return (
     <div className="page-container">

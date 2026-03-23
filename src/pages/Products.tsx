@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBusiness } from "@/hooks/useBusiness";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import UpgradeNudge from "@/components/UpgradeNudge";
 import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +21,7 @@ const units = ["piece", "kg", "litre", "bottle", "pack", "carton", "dozen"];
 export default function Products() {
   const { user } = useAuth();
   const { businessId } = useBusiness();
+  const { isFree, maxProducts } = usePlanLimits();
   const [products, setProducts] = useState<Product[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [search, setSearch] = useState("");
@@ -126,7 +129,11 @@ export default function Products() {
         </div>
         <Button size="sm" variant="outline" onClick={() => setScannerOpen(true)}><ScanLine className="w-4 h-4" /></Button>
         <Button size="sm" variant="outline" onClick={() => setShowManualSku(v => !v)}><Keyboard className="w-4 h-4" /></Button>
-        <Button size="sm" onClick={openNew}><Plus className="w-4 h-4" /></Button>
+        {isFree && products.length >= maxProducts ? (
+          <UpgradeNudge message={`Free plan limit: ${maxProducts} products. Upgrade for unlimited.`} />
+        ) : (
+          <Button size="sm" onClick={openNew}><Plus className="w-4 h-4" /></Button>
+        )}
       </div>
 
       {showManualSku && (

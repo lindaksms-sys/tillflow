@@ -15,24 +15,45 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   // Downgrade pro plans that have expired
-  const { data, error } = await supabase
+  const { data: expiredPro, error: proError } = await supabase
     .from("business_profiles")
     .update({ plan: "expired" })
     .eq("plan", "pro")
     .lt("pro_expires_at", new Date().toISOString())
     .select("id, name");
 
-  if (error) {
-    console.error("Expiry check error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  if (proError) {
+    console.error("Pro expiry check error:", proError);
+  } else {
+    console.log(`Expired ${expiredPro?.length || 0} pro businesses:`, expiredPro);
+    // Sync clients table for expired pro
+    for (const biz of expiredPro || []) {
+      await supabase.from("clients").update({ status: "expired" }).eq("business_id", biz.id);
+    }
   }
 
-  console.log(`Expired ${data?.length || 0} businesses:`, data);
+  // Downgrade expired trials to free plan
+  const { data: expiredTrials, error: trialError } = await supabase
+    .from("business_profiles")
+    .update({ plan: "free" })
+    .eq("plan", "trial")
+    .lt("trial_ends_at", new Date().toISOString())
+    .select("id, name");
 
-  return new Response(JSON.stringify({ expired: data?.length || 0 }), {
+  if (trialError) {
+    console.error("Trial expiry check error:", trialError);
+  } else {
+    console.log(`Downgraded ${expiredTrials?.length || 0} trials to free:`, expiredTrials);
+    // Sync clients table for free downgrades
+    for (const biz of expiredTrials || []) {
+      await supabase.from("clients").update({ status: "free" }).eq("business_id", biz.id);
+    }
+  }
+
+  return new Response(JSON.stringify({
+    expired_pro: expiredPro?.length || 0,
+    downgraded_to_free: expiredTrials?.length || 0,
+  }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });

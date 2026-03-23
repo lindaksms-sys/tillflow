@@ -20,6 +20,7 @@ function planStatus(b: any): { label: string; color: string; icon: any } {
     return { label: `Pro (${days}d left)`, color: "text-green-400", icon: CheckCircle };
   }
   if (b.plan === "expired") return { label: "Expired", color: "text-destructive", icon: XCircle };
+  if (b.plan === "free") return { label: "Free", color: "text-muted-foreground", icon: Clock };
   if (b.plan === "trial") {
     if (!b.trial_ends_at) return { label: "Trial", color: "text-muted-foreground", icon: Clock };
     const days = differenceInDays(new Date(b.trial_ends_at), new Date());

@@ -69,8 +69,8 @@ function AppRoutes() {
   if (!user) return <Login />;
   if (!businessId) return <Onboarding />;
 
-  // Check trial expiration or expired pro
-  if (plan === "expired" || (plan === "trial" && trialEndsAt && new Date(trialEndsAt) < new Date())) {
+  // Only block expired Pro users — free plan users get limited access
+  if (plan === "expired") {
     return <TrialExpired />;
   }
 

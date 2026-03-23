@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBusiness } from "@/hooks/useBusiness";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import UpgradeNudge from "@/components/UpgradeNudge";
 import PageHeader from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -46,6 +48,7 @@ function formatLineLabel(item: CartItem): string | null {
 export default function Sales() {
   const { user } = useAuth();
   const { businessId, role, isOwner, isManager } = useBusiness();
+  const { isFree, allowedPaymentMethods, salesHistoryDays } = usePlanLimits();
   const [tab, setTab] = useState<"pos" | "history">("pos");
   const [products, setProducts] = useState<Product[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -92,6 +95,11 @@ export default function Sales() {
     let q = supabase.from("sales").select("*").eq("business_id", businessId!).order("created_at", { ascending: false }).limit(50);
     if (dateFilter) {
       q = q.gte("created_at", dateFilter + "T00:00:00").lte("created_at", dateFilter + "T23:59:59");
+    } else if (salesHistoryDays) {
+      // Free plan: limit to last N days
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - salesHistoryDays);
+      q = q.gte("created_at", cutoff.toISOString());
     }
     if (staffFilter !== "all") {
       q = q.eq("user_id", staffFilter);
@@ -390,9 +398,11 @@ export default function Sales() {
           <div className="flex gap-2 mb-3">
             {(["cash", "card", "mobile_money", "credit"] as const).map(m => {
               const Icon = paymentIcons[m];
+              const locked = !allowedPaymentMethods.includes(m);
               return (
-                <button key={m} onClick={() => { setPaymentMethod(m); if (m !== "credit") setSelectedCreditCustomer(null); }}
+                <button key={m} onClick={() => { if (locked) return; setPaymentMethod(m); if (m !== "credit") setSelectedCreditCustomer(null); }}
                   className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg border transition-colors ${
+                    locked ? "border-border/50 text-muted-foreground/40 cursor-not-allowed opacity-50" :
                     paymentMethod === m ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
                   }`}>
                   <Icon className="w-4 h-4" />
@@ -401,6 +411,7 @@ export default function Sales() {
               );
             })}
           </div>
+          {isFree && <UpgradeNudge message="Free plan: cash only. Upgrade for card, mobile money & credit." className="mb-3" />}
 
           {/* Credit customer selection */}
           {isCreditSale && (
