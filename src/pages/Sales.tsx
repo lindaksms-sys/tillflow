@@ -95,6 +95,11 @@ export default function Sales() {
     let q = supabase.from("sales").select("*").eq("business_id", businessId!).order("created_at", { ascending: false }).limit(50);
     if (dateFilter) {
       q = q.gte("created_at", dateFilter + "T00:00:00").lte("created_at", dateFilter + "T23:59:59");
+    } else if (salesHistoryDays) {
+      // Free plan: limit to last N days
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - salesHistoryDays);
+      q = q.gte("created_at", cutoff.toISOString());
     }
     if (staffFilter !== "all") {
       q = q.eq("user_id", staffFilter);
