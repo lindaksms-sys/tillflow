@@ -109,6 +109,62 @@ export type Database = {
         }
         Relationships: []
       }
+      clients: {
+        Row: {
+          business_id: string
+          email: string
+          features: string | null
+          id: string
+          location: string
+          mrr: number
+          name: string
+          owner: string
+          plan: string | null
+          signup_date: string
+          status: string
+          trial_end: string | null
+          upgrade_date: string | null
+        }
+        Insert: {
+          business_id: string
+          email: string
+          features?: string | null
+          id?: string
+          location?: string
+          mrr?: number
+          name: string
+          owner: string
+          plan?: string | null
+          signup_date?: string
+          status?: string
+          trial_end?: string | null
+          upgrade_date?: string | null
+        }
+        Update: {
+          business_id?: string
+          email?: string
+          features?: string | null
+          id?: string
+          location?: string
+          mrr?: number
+          name?: string
+          owner?: string
+          plan?: string | null
+          signup_date?: string
+          status?: string
+          trial_end?: string | null
+          upgrade_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       credit_customers: {
         Row: {
           business_id: string | null
