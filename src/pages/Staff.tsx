@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useBusiness } from "@/hooks/useBusiness";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import UpgradeNudge from "@/components/UpgradeNudge";
 import { useRequireRole } from "@/hooks/useRequireRole";
 import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
