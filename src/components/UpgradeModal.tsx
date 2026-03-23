@@ -14,7 +14,7 @@ const paymentOptions = [
     key: "card",
     title: "International Card / PayPal",
     desc: "Pay via PayPal — works from anywhere",
-    details: 'Send payment to: paypal.me/creativehauz\nUse your business email as reference.',
+    details: 'Send payment to: leekissy18@gmail.com (PayPal)\nUse your business email as reference.',
   },
   {
     icon: Smartphone,
