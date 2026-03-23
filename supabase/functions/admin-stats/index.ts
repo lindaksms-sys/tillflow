@@ -104,6 +104,7 @@ Deno.serve(async (req) => {
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       ),
       recent_payments: recentPayments || [],
+      clients: clients || [],
     };
 
     return new Response(JSON.stringify(response), {
