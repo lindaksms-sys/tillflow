@@ -6,80 +6,46 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
+type TokenInfo =
+  | { kind: "hash"; access_token: string; refresh_token: string }
+  | { kind: "otp"; token_hash: string };
+
 export default function AcceptInvite() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<"loading" | "form" | "no-token" | "error">("loading");
+  const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
+  const [step, setStep] = useState<"loading" | "form" | "no-token">("loading");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    handleInviteToken();
+    extractToken();
   }, []);
 
-  async function handleInviteToken() {
-    // Clear any existing session first (e.g. owner's session on shared device)
+  async function extractToken() {
+    // Clear any existing session on this device
     await supabase.auth.signOut();
 
     const hash = window.location.hash.substring(1);
     const hashParams = new URLSearchParams(hash);
     const searchParams = new URLSearchParams(window.location.search);
 
-    // Format 1: Hash tokens — #access_token=xxx&refresh_token=yyy&type=invite
     const hashAccessToken = hashParams.get("access_token");
     const hashRefreshToken = hashParams.get("refresh_token");
     const hashType = hashParams.get("type");
 
-    // Format 2: Query OTP — ?token_hash=xxx&type=invite (or ?token=xxx&type=invite)
     const queryTokenHash = searchParams.get("token_hash") || searchParams.get("token");
     const queryType = searchParams.get("type");
 
-    try {
-      if (hashAccessToken && hashRefreshToken && hashType === "invite") {
-        // Session-based invite: set the session directly
-        const { error } = await supabase.auth.setSession({
-          access_token: hashAccessToken,
-          refresh_token: hashRefreshToken,
-        });
-
-        if (error) {
-          console.error("Session set error:", error);
-          setErrorMsg("This invitation link is invalid or has expired. Please ask your manager to send a new invite.");
-          setStep("error");
-          return;
-        }
-      } else if (queryTokenHash && queryType === "invite") {
-        // OTP-based invite: verify the token hash
-        const { error } = await supabase.auth.verifyOtp({
-          token_hash: queryTokenHash,
-          type: "invite",
-        });
-
-        if (error) {
-          console.error("OTP verify error:", error);
-          setErrorMsg("This invitation link is invalid or has expired. Please ask your manager to send a new invite.");
-          setStep("error");
-          return;
-        }
-      } else {
-        // No valid invite token found
-        setStep("no-token");
-        return;
-      }
-
-      // At this point we have a valid session for the invited user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.user_metadata?.full_name) {
-        setFullName(user.user_metadata.full_name);
-      }
-
+    if (hashAccessToken && hashRefreshToken && hashType === "invite") {
+      setTokenInfo({ kind: "hash", access_token: hashAccessToken, refresh_token: hashRefreshToken });
       setStep("form");
-    } catch (err) {
-      console.error("Invite processing error:", err);
-      setErrorMsg("Something went wrong processing your invitation. Please try again.");
-      setStep("error");
+    } else if (queryTokenHash && queryType === "invite") {
+      setTokenInfo({ kind: "otp", token_hash: queryTokenHash });
+      setStep("form");
+    } else {
+      setStep("no-token");
     }
   }
 
@@ -90,17 +56,45 @@ export default function AcceptInvite() {
       toast.error("Please enter your full name");
       return;
     }
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters");
       return;
     }
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
       return;
     }
+    if (!tokenInfo) {
+      toast.error("No invite token found");
+      return;
+    }
 
     setSubmitting(true);
     try {
+      // NOW authenticate using the stored token
+      if (tokenInfo.kind === "hash") {
+        const { error } = await supabase.auth.setSession({
+          access_token: tokenInfo.access_token,
+          refresh_token: tokenInfo.refresh_token,
+        });
+        if (error) {
+          toast.error("This invitation link is invalid or has expired. Please ask your manager to resend.");
+          setSubmitting(false);
+          return;
+        }
+      } else {
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: tokenInfo.token_hash,
+          type: "invite",
+        });
+        if (error) {
+          toast.error("This invitation link is invalid or has expired. Please ask your manager to resend.");
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // Set password and full name
       const { error: updateError } = await supabase.auth.updateUser({
         password,
         data: { full_name: fullName.trim() },
@@ -112,6 +106,7 @@ export default function AcceptInvite() {
         return;
       }
 
+      // Update business_members full_name
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase
@@ -120,9 +115,15 @@ export default function AcceptInvite() {
           .eq("user_id", user.id);
       }
 
-      toast.success("Account set up successfully! Welcome to TillFlow.");
+      // Sign out so they must log in with their new credentials
+      await supabase.auth.signOut();
       window.location.hash = "";
-      navigate("/", { replace: true });
+
+      toast.success("Account created! You can now log in with your email and this password.");
+
+      setTimeout(() => {
+        navigate("/login", { replace: true });
+      }, 2000);
     } catch (err) {
       console.error("Setup error:", err);
       toast.error("Failed to set up your account. Please try again.");
@@ -143,27 +144,14 @@ export default function AcceptInvite() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-sm space-y-6 text-center">
-          <div className="text-4xl">📩</div>
+          <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mx-auto">
+            <span className="text-primary-foreground font-bold text-xl">TF</span>
+          </div>
           <h1 className="text-xl font-semibold text-foreground">Invalid Invite Link</h1>
           <p className="text-muted-foreground text-sm">
-            Your invite link may have expired or is invalid. Please ask your manager to resend the invitation.
+            Your invite link may have expired or is invalid. Ask your manager to resend the invitation.
           </p>
-          <Button onClick={() => navigate("/", { replace: true })} className="w-full">
-            Back to Login
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (step === "error") {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-sm space-y-6 text-center">
-          <div className="text-4xl">⚠️</div>
-          <h1 className="text-xl font-semibold text-foreground">Invitation Error</h1>
-          <p className="text-muted-foreground text-sm">{errorMsg}</p>
-          <Button onClick={() => navigate("/", { replace: true })} className="w-full">
+          <Button onClick={() => navigate("/login", { replace: true })} className="w-full">
             Back to Login
           </Button>
         </div>
@@ -175,12 +163,12 @@ export default function AcceptInvite() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto">
-            <span className="text-primary-foreground font-bold text-lg">T</span>
+          <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mx-auto">
+            <span className="text-primary-foreground font-bold text-xl">TF</span>
           </div>
           <h1 className="text-xl font-semibold text-foreground">Welcome to TillFlow</h1>
           <p className="text-muted-foreground text-sm">
-            Set up your account to get started
+            Set up your password to get started
           </p>
         </div>
 
@@ -197,14 +185,14 @@ export default function AcceptInvite() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">New Password</Label>
             <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Minimum 6 characters"
-              minLength={6}
+              placeholder="Minimum 8 characters"
+              minLength={8}
               required
             />
           </div>
@@ -222,7 +210,7 @@ export default function AcceptInvite() {
           </div>
 
           <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? "Setting up..." : "Complete Setup"}
+            {submitting ? "Setting up..." : "Set Up My Account"}
           </Button>
         </form>
       </div>
