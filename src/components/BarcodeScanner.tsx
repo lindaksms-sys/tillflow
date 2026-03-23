@@ -58,10 +58,7 @@ export default function BarcodeScanner({ open, onClose, onScan }: BarcodeScanner
             fps: 15,
             qrbox: { width: 300, height: 80 },
             aspectRatio: 1.5,
-            experimentalFeatures: {
-              useBarCodeDetectorIfSupported: true,
-            },
-          },
+          } as any,
           async (decodedText) => {
             try {
               await instance.stop();
