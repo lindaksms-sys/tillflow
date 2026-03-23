@@ -52,6 +52,20 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     loadBusiness();
   }, [user]);
 
+  // Realtime: re-fetch when business_profiles row changes (e.g. plan upgrade)
+  useEffect(() => {
+    if (!businessId) return;
+    const channel = supabase
+      .channel(`biz-${businessId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "business_profiles", filter: `id=eq.${businessId}` },
+        () => { loadBusiness(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [businessId]);
+
   const loadBusiness = async () => {
     setLoading(true);
 
