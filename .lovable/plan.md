@@ -1,73 +1,29 @@
 
 
-## Implement Free Plan with Restrictions + Auto-Downgrade
+## Instant Pro Unlock Without Refresh
 
-Based on the pricing screenshot, the Free Plan restrictions are:
-- Basic POS — cash only
-- Up to 50 products
-- 1 staff member
-- 7-day sales history
-- Credit client tracking (basic)
+### Problem
+When you activate Pro for a business via the Admin page, the business user's app still shows Free plan restrictions until they refresh. This is because `useBusiness` only fetches the plan on login/mount.
 
-### What needs to change
+### Solution
+Add a Realtime subscription on the `business_profiles` table inside the `BusinessProvider`. When the `plan` column changes (e.g. from `free` → `pro`), the provider automatically re-fetches — all components using `useBusiness()` and `usePlanLimits()` re-render instantly with the new plan.
 
-**1. Update `check-plan-expiry` edge function**
-- Also downgrade expired trials: where `plan = 'trial'` and `trial_ends_at < now()` → set `plan = 'free'`
-- Also sync `clients` table: set `status = 'free'` for downgraded businesses
+### Steps
 
-**2. Update `App.tsx` — stop blocking expired trials**
-- Currently line 73 blocks users when trial expires. Instead, let them through with `plan = 'free'` (after the cron runs)
-- For immediate frontend handling: if `plan === 'trial'` and trial has passed, treat as `'free'` in the UI
-- Only block for `plan === 'expired'` (expired Pro)
+**1. Enable Realtime on `business_profiles`**
+Database migration:
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE public.business_profiles;
+```
 
-**3. Create `usePlanLimits` hook**
-Returns computed limits based on current plan:
-- `isFree`: boolean
-- `maxProducts`: 50 or unlimited
-- `maxStaff`: 1 or 10
-- `salesHistoryDays`: 7 or unlimited
-- `allowedPaymentMethods`: `['cash']` or `['cash', 'card', 'mobile_money']`
-- `hasInsights`: boolean
-- `hasReceiptScan`: boolean
-- `hasBulkUpload`: boolean
+**2. Update `src/hooks/useBusiness.tsx`**
+Add a `useEffect` that subscribes to Postgres changes on `business_profiles` filtered to the current `businessId`. On any `UPDATE` event, call `loadBusiness()` to refresh all plan-related state. Clean up the subscription on unmount.
 
-**4. Enforce limits across pages**
-
-| Page/Feature | Free restriction | Implementation |
-|---|---|---|
-| Products | Max 50 products | Disable "Add Product" button + show upgrade nudge when at 50 |
-| Sales (POS) | Cash only | Hide card/mobile money payment options, show lock icon + upgrade nudge |
-| Staff | Max 1 member | Hide "Invite Staff" when 1 member exists |
-| Insights | Blocked | Show upgrade wall instead of insights page |
-| Sales history | 7 days only | Filter queries to last 7 days, show "Upgrade for full history" |
-| Receipt scan | Blocked | Show upgrade nudge on scan button |
-| Bulk stock upload | Blocked | Disable bulk upload option |
-
-**5. Add `FreePlanBanner` component**
-Replaces `TrialBanner` for free users: "You're on the Free plan — Upgrade to Pro for full access →"
-
-**6. Update `TrialExpired` component**
-- Rename/refactor: show different messages for expired Pro vs free plan nudge
-- Free plan users should NOT be blocked — they get limited access
-- Only expired Pro users see the blocking screen
-
-**7. Database migration**
-- Update `check-plan-expiry` to handle trial→free transition
-- No new columns needed — `plan = 'free'` is a new valid value
-
-### Files changed/created
-
+### Files changed
 | File | Action |
-|---|---|
-| `supabase/functions/check-plan-expiry/index.ts` | Add trial→free downgrade + clients sync |
-| `src/hooks/usePlanLimits.tsx` | New — computed plan limits |
-| `src/App.tsx` | Allow free plan users through (don't block) |
-| `src/components/TrialBanner.tsx` | Handle free plan banner variant |
-| `src/components/TrialExpired.tsx` | Only block expired Pro, not free |
-| `src/pages/Products.tsx` | Enforce 50-product limit |
-| `src/pages/Sales.tsx` | Cash-only for free plan |
-| `src/pages/Staff.tsx` | 1-member limit |
-| `src/pages/Insights.tsx` | Upgrade wall for free plan |
-| `src/components/UpgradeNudge.tsx` | New — reusable "Upgrade to unlock" component |
-| Migration | Downgrade existing expired trials to `'free'` |
+|------|--------|
+| Migration | Enable realtime on `business_profiles` |
+| `src/hooks/useBusiness.tsx` | Add realtime subscription (~15 lines) |
+
+No other files need changes — `usePlanLimits`, `TrialBanner`, and all page-level restrictions already derive from `useBusiness()` reactively.
 
