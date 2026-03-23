@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     if (clientsError) throw clientsError;
 
     // Aggregate plan breakdown
-    const byPlan: Record<string, number> = { trial: 0, pro: 0, expired: 0 };
+    const byPlan: Record<string, number> = { trial: 0, pro: 0, expired: 0, free: 0 };
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
