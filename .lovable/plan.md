@@ -1,57 +1,68 @@
 
 
-## Flutterwave Payment Integration for TillFlow
+## Replace Flutterwave with "Contact Sales" Upgrade Flow
 
-### Overview
-Integrate Flutterwave to handle subscription payments (trial → paid plan upgrades). Flutterwave covers 30+ African countries with cards, mobile money, bank transfers, and USSD.
+No Flutterwave code exists yet, so this is purely additive.
 
-### Architecture
+### Database Changes (1 migration)
 
-```text
-User clicks "Upgrade" → Edge Function creates Flutterwave payment link → User pays on Flutterwave hosted page → Flutterwave webhook → Edge Function verifies & activates plan
-```
+1. Add `pro_expires_at` column to `business_profiles` (timestamptz, nullable)
+2. Create `manual_payments` table:
+   - `id` (uuid PK), `business_id` (uuid), `amount` numeric, `note` text, `activated_by` uuid, `created_at` timestamptz
+   - RLS: admin-only read/insert (via `saas_admin` check)
 
-### Steps
+### New Components
 
-**1. Store Flutterwave API keys as secrets**
-- `FLW_SECRET_KEY` — your Flutterwave secret key (from dashboard.flutterwave.com)
-- `FLW_WEBHOOK_HASH` — webhook verification hash
+**`src/components/UpgradeModal.tsx`**
+- Dialog with pricing info ($2.99/month) and 4 payment option cards (International Card/PayPal, Mobile Money, Bank Transfer, Other)
+- WhatsApp CTA button: `wa.me/263XXXXXXXXX?text=...` with auto-filled business name + email from `useBusiness()` and `useAuth()`
+- Email fallback: `mailto:info@creativehauz.space?subject=...&body=...`
+- Footer help text
+- Exported `useUpgradeModal` hook (open/close state) or simple props
 
-**2. Create `create-checkout` edge function**
-- Accepts `business_id` and `plan` from authenticated user
-- Calls Flutterwave's `/v3/payments` API to generate a hosted payment link
-- Sets amount based on plan (e.g. $9.99/month for "starter", $24.99 for "pro")
-- Passes `redirect_url` back to `https://tillflow.creativehauz.space/settings?payment=success`
-- Returns the Flutterwave checkout URL to the frontend
+### Updated Components
 
-**3. Create `flutterwave-webhook` edge function**
-- Receives Flutterwave payment notifications
-- Verifies webhook hash for security
-- Calls Flutterwave `/v3/transactions/{id}/verify` to confirm payment
-- Updates `business_profiles.plan` from `"trial"` to the paid plan
-- Optionally sets `trial_ends_at = null`
+**`src/components/TrialBanner.tsx`** — "Upgrade" button opens UpgradeModal
 
-**4. Add `subscriptions` table (migration)**
-- Columns: `id`, `business_id`, `flw_transaction_id`, `plan`, `amount`, `currency`, `status`, `paid_at`, `expires_at`
-- RLS: owner can read own business subscriptions
+**`src/components/TrialExpired.tsx`** — "Upgrade Now" button opens UpgradeModal
 
-**5. Update frontend**
-- **TrialBanner**: "Upgrade" button calls `create-checkout` and redirects to Flutterwave
-- **TrialExpired**: "Upgrade Now" button does the same
-- **Settings**: Plan section shows current plan status and payment history
-- **Settings**: Handle `?payment=success` query param to show success toast and refresh plan
+### Admin Page (`src/pages/Admin.tsx`) — Major Update
 
-### Pricing tiers (configurable)
-- **Starter**: $9.99/month — up to 3 staff, 500 products
-- **Pro**: $24.99/month — unlimited staff & products, priority support
+- Add search input (filter by business name or owner email — will need to join `business_members` or query separately)
+- Per-business row shows: name, plan, `pro_expires_at`, color-coded status badge (green/yellow/red)
+- "Activate Pro" button: sets `plan = 'pro'`, `pro_expires_at = now + 30 days`, inserts into `manual_payments`
+- "Extend 30 days" button: adds 30 days to `pro_expires_at`, inserts log
+- Payment note text field per activation
+- Uses service-role via edge function or direct admin RLS (owner_id check won't work for admin — will use existing `saas_admin` policy + add UPDATE policy for admin on `business_profiles`)
 
-These are initial values; you can adjust them before we build.
+Need an additional RLS policy: **Admin can update all business_profiles** (currently only owner can).
 
-### Files changed/created
-- `supabase/functions/create-checkout/index.ts` (new)
-- `supabase/functions/flutterwave-webhook/index.ts` (new)
-- `src/components/TrialBanner.tsx` (update)
-- `src/components/TrialExpired.tsx` (update)
-- `src/pages/Settings.tsx` (update)
-- 1 database migration for `subscriptions` table
+### Auto-Expiry — Cron Edge Function
+
+**`supabase/functions/check-plan-expiry/index.ts`**
+- Runs daily via `pg_cron`
+- Queries `business_profiles` where `plan = 'pro'` and `pro_expires_at < now()`
+- Sets `plan = 'expired'` for those businesses
+- Uses service role key
+
+### useBusiness Hook Update
+
+- Expose `proExpiresAt` from business context
+- Handle `plan === 'expired'` same as expired trial (show TrialExpired-like screen but with "Pro expired" messaging)
+
+### Files Summary
+
+| File | Action |
+|------|--------|
+| Migration | Add `pro_expires_at`, create `manual_payments` table, add admin UPDATE policy on `business_profiles` |
+| `src/components/UpgradeModal.tsx` | New — modal with payment options + WhatsApp/email CTAs |
+| `src/components/TrialBanner.tsx` | Update — wire upgrade button to modal |
+| `src/components/TrialExpired.tsx` | Update — wire upgrade button to modal, handle expired pro |
+| `src/pages/Admin.tsx` | Major update — search, activate/extend pro, payment notes, color-coded statuses |
+| `src/hooks/useBusiness.tsx` | Add `proExpiresAt`, handle `expired` plan |
+| `supabase/functions/check-plan-expiry/index.ts` | New — daily cron to downgrade expired pro plans |
+| pg_cron setup | Schedule daily invocation |
+
+### Question needed
+- What WhatsApp number should the CTA link to?
 
