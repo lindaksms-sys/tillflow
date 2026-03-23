@@ -32,6 +32,7 @@ const roleColors: Record<string, string> = {
 export default function Staff() {
   const { verified, verifying } = useRequireRole(['owner']);
   const { businessId } = useBusiness();
+  const { isFree, maxStaff } = usePlanLimits();
 
   const [members, setMembers] = useState<Member[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
