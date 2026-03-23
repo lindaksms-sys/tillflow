@@ -21,7 +21,7 @@ const paymentOptions = [
     key: "mobile",
     title: "Mobile Money",
     desc: "EcoCash, M-Pesa, MTN MoMo, Airtel Money",
-    details: "EcoCash: +263 77 123 4567\nM-Pesa/MTN MoMo/Airtel: WhatsApp us for details.",
+    details: "WhatsApp us for mobile money payment details\n(EcoCash, M-Pesa, MTN MoMo, Airtel Money).",
   },
   {
     icon: Building2,
