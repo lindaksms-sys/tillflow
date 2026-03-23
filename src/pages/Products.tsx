@@ -129,7 +129,11 @@ export default function Products() {
         </div>
         <Button size="sm" variant="outline" onClick={() => setScannerOpen(true)}><ScanLine className="w-4 h-4" /></Button>
         <Button size="sm" variant="outline" onClick={() => setShowManualSku(v => !v)}><Keyboard className="w-4 h-4" /></Button>
-        <Button size="sm" onClick={openNew}><Plus className="w-4 h-4" /></Button>
+        {isFree && products.length >= maxProducts ? (
+          <UpgradeNudge message={`Free plan limit: ${maxProducts} products. Upgrade for unlimited.`} />
+        ) : (
+          <Button size="sm" onClick={openNew}><Plus className="w-4 h-4" /></Button>
+        )}
       </div>
 
       {showManualSku && (
