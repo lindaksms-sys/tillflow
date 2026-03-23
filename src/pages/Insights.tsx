@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBusiness } from "@/hooks/useBusiness";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import UpgradeNudge from "@/components/UpgradeNudge";
 import { useRequireRole } from "@/hooks/useRequireRole";
 import PageHeader from "@/components/PageHeader";
 import { AlertTriangle, TrendingDown, PackageX, ShieldAlert, UserCheck, DollarSign } from "lucide-react";
