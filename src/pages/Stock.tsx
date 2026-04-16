@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, ArrowDownUp, Search, ScanLine } from "lucide-react";
+import { AlertTriangle, ArrowDownUp, Search, ScanLine, ChevronDown, ChevronUp, Hash, Package } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ReceiptScanner from "@/components/ReceiptScanner";
+import type { SerialItem } from "@/lib/supabase-helpers";
 
 type StockRow = {
   product_id: string;
@@ -20,6 +21,7 @@ type StockRow = {
   reorder_threshold: number;
   category: string;
   business_type: string;
+  tracking_type: string;
 };
 
 export default function Stock() {
@@ -36,39 +38,165 @@ export default function Stock() {
   const [history, setHistory] = useState<any[]>([]);
   const [receiptOpen, setReceiptOpen] = useState(false);
 
+  // Serial/batch entry state
+  const [serialNumbers, setSerialNumbers] = useState(""); // one per line
+  const [batchNumber, setBatchNumber] = useState("");
+  const [batchExpiry, setBatchExpiry] = useState("");
+
+  // Serial/batch viewer state
+  const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
+  const [serialItems, setSerialItems] = useState<SerialItem[]>([]);
+
+  // Damage serial selection
+  const [damageSerials, setDamageSerials] = useState<string[]>([]);
+
   useEffect(() => { if (user) load(); }, [user]);
 
   const load = async () => {
-    const { data: products } = await supabase.from("products").select("id, name, reorder_threshold, category, business_type");
+    const { data: products } = await supabase.from("products").select("id, name, reorder_threshold, category, business_type, tracking_type");
     const { data: levels } = await supabase.from("stock_levels").select("product_id, quantity");
     const levelMap = Object.fromEntries(levels?.map(l => [l.product_id, l.quantity]) || []);
     setItems(
       (products || []).map(p => ({
         product_id: p.id, product_name: p.name, quantity: levelMap[p.id] ?? 0,
         reorder_threshold: p.reorder_threshold, category: p.category, business_type: p.business_type,
+        tracking_type: (p as any).tracking_type || "none",
       }))
     );
   };
 
-  const openAdjust = (item: StockRow) => { setSelectedProduct(item); setAdjType("restock"); setAdjQty(""); setAdjNote(""); setDialogOpen(true); };
+  const openAdjust = (item: StockRow) => {
+    setSelectedProduct(item);
+    setAdjType("restock");
+    setAdjQty("");
+    setAdjNote("");
+    setSerialNumbers("");
+    setBatchNumber("");
+    setBatchExpiry("");
+    setDamageSerials([]);
+    setDialogOpen(true);
+
+    // If damage/spoilage on tracked product, load in-stock serials
+    if (item.tracking_type !== "none") {
+      loadSerialItemsForProduct(item.product_id);
+    }
+  };
+
+  const loadSerialItemsForProduct = async (productId: string) => {
+    const { data } = await supabase
+      .from("serial_items")
+      .select("*")
+      .eq("product_id", productId)
+      .order("received_at", { ascending: true });
+    setSerialItems((data as any[]) || []);
+  };
 
   const saveAdj = async () => {
-    if (!selectedProduct || !adjQty) return;
-    const qty = Number(adjQty);
-    await supabase.from("stock_adjustments").insert({
-      product_id: selectedProduct.product_id, type: adjType, quantity: qty, note: adjNote || null,
-      business_id: businessId,
-    });
+    if (!selectedProduct || !businessId) return;
 
-    const newQty = adjType === "restock"
-      ? selectedProduct.quantity + qty
-      : selectedProduct.quantity - Math.abs(qty);
+    const isTracked = selectedProduct.tracking_type !== "none";
+    const isSerial = selectedProduct.tracking_type === "serial";
+    const isBatch = selectedProduct.tracking_type === "batch";
 
-    await supabase.from("stock_levels")
-      .update({ quantity: Math.max(0, newQty), last_updated: new Date().toISOString() })
-      .eq("product_id", selectedProduct.product_id);
+    if (adjType === "restock" && isSerial) {
+      // Serial restock: each line is a serial number
+      const serials = serialNumbers.split("\n").map(s => s.trim()).filter(Boolean);
+      if (serials.length === 0) { toast.error("Enter at least one serial number"); return; }
 
-    toast.success("Stock updated");
+      // Check for duplicates
+      const { data: existing } = await supabase
+        .from("serial_items")
+        .select("serial_number")
+        .eq("product_id", selectedProduct.product_id)
+        .in("serial_number", serials);
+      const dupes = (existing || []).map(e => (e as any).serial_number);
+      if (dupes.length > 0) {
+        toast.error(`Duplicate serials: ${dupes.join(", ")}`);
+        return;
+      }
+
+      const rows = serials.map(sn => ({
+        business_id: businessId,
+        product_id: selectedProduct.product_id,
+        serial_number: sn,
+        status: "in_stock",
+      }));
+      await supabase.from("serial_items").insert(rows as any);
+
+      // Record adjustment
+      await supabase.from("stock_adjustments").insert({
+        product_id: selectedProduct.product_id, type: "restock", quantity: serials.length,
+        note: adjNote || `Serials: ${serials.join(", ")}`, business_id: businessId,
+      });
+
+      // Update stock level
+      await supabase.from("stock_levels")
+        .update({ quantity: selectedProduct.quantity + serials.length, last_updated: new Date().toISOString() })
+        .eq("product_id", selectedProduct.product_id);
+
+      toast.success(`${serials.length} serial items restocked`);
+    } else if (adjType === "restock" && isBatch) {
+      const qty = Number(adjQty);
+      if (!batchNumber || !qty || qty <= 0) { toast.error("Enter batch number and quantity"); return; }
+
+      const rows = Array.from({ length: qty }, () => ({
+        business_id: businessId,
+        product_id: selectedProduct.product_id,
+        batch_number: batchNumber,
+        expiry_date: batchExpiry || null,
+        status: "in_stock",
+      }));
+      await supabase.from("serial_items").insert(rows as any);
+
+      await supabase.from("stock_adjustments").insert({
+        product_id: selectedProduct.product_id, type: "restock", quantity: qty,
+        note: adjNote || `Batch: ${batchNumber}${batchExpiry ? `, Exp: ${batchExpiry}` : ""}`,
+        business_id: businessId,
+      });
+
+      await supabase.from("stock_levels")
+        .update({ quantity: selectedProduct.quantity + qty, last_updated: new Date().toISOString() })
+        .eq("product_id", selectedProduct.product_id);
+
+      toast.success(`${qty} items restocked (Batch: ${batchNumber})`);
+    } else if (["spoilage", "theft"].includes(adjType) && isTracked && damageSerials.length > 0) {
+      // Mark selected serials as damaged
+      for (const sid of damageSerials) {
+        await supabase.from("serial_items").update({ status: "damaged" } as any).eq("id", sid);
+      }
+
+      await supabase.from("stock_adjustments").insert({
+        product_id: selectedProduct.product_id, type: adjType, quantity: damageSerials.length,
+        note: adjNote || null, business_id: businessId,
+      });
+
+      const newQty = Math.max(0, selectedProduct.quantity - damageSerials.length);
+      await supabase.from("stock_levels")
+        .update({ quantity: newQty, last_updated: new Date().toISOString() })
+        .eq("product_id", selectedProduct.product_id);
+
+      toast.success(`${damageSerials.length} items marked as ${adjType}`);
+    } else {
+      // Non-tracked or correction
+      const qty = Number(adjQty);
+      if (!qty) return;
+
+      await supabase.from("stock_adjustments").insert({
+        product_id: selectedProduct.product_id, type: adjType, quantity: qty, note: adjNote || null,
+        business_id: businessId,
+      });
+
+      const newQty = adjType === "restock"
+        ? selectedProduct.quantity + qty
+        : selectedProduct.quantity - Math.abs(qty);
+
+      await supabase.from("stock_levels")
+        .update({ quantity: Math.max(0, newQty), last_updated: new Date().toISOString() })
+        .eq("product_id", selectedProduct.product_id);
+
+      toast.success("Stock updated");
+    }
+
     setDialogOpen(false);
     load();
   };
@@ -81,7 +209,17 @@ export default function Stock() {
     setHistoryOpen(true);
   };
 
+  const toggleExpand = async (productId: string) => {
+    if (expandedProduct === productId) {
+      setExpandedProduct(null);
+      return;
+    }
+    setExpandedProduct(productId);
+    await loadSerialItemsForProduct(productId);
+  };
+
   const filtered = items.filter(i => !search || i.product_name.toLowerCase().includes(search.toLowerCase()));
+  const inStockSerials = serialItems.filter(s => s.status === "in_stock");
 
   return (
     <div className="page-container">
@@ -101,30 +239,72 @@ export default function Stock() {
       <div className="space-y-2">
         {filtered.map(item => {
           const low = item.quantity <= item.reorder_threshold;
+          const isTracked = item.tracking_type !== "none";
+          const isExpanded = expandedProduct === item.product_id;
           return (
-            <div key={item.product_id} className="glass-card p-3 flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium truncate">{item.product_name}</p>
-                  {low && <AlertTriangle className="w-3.5 h-3.5 text-warning flex-shrink-0" />}
+            <div key={item.product_id} className="glass-card">
+              <div className="p-3 flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate">{item.product_name}</p>
+                    {low && <AlertTriangle className="w-3.5 h-3.5 text-warning flex-shrink-0" />}
+                    {isTracked && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                        {item.tracking_type === "serial" ? "SN" : "Batch"}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{item.category} · Threshold: {item.reorder_threshold}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{item.category} · Threshold: {item.reorder_threshold}</p>
+                <div className="flex items-center gap-2 ml-2">
+                  <span className={`text-sm font-bold tabular-nums ${low ? "text-warning" : "text-foreground"}`}>{item.quantity}</span>
+                  <button onClick={() => openAdjust(item)} className="p-2 text-muted-foreground hover:text-primary">
+                    <ArrowDownUp className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => openHistory(item)} className="text-xs text-muted-foreground hover:text-foreground underline">Log</button>
+                  {isTracked && (
+                    <button onClick={() => toggleExpand(item.product_id)} className="p-1 text-muted-foreground hover:text-foreground">
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2 ml-2">
-                <span className={`text-sm font-bold tabular-nums ${low ? "text-warning" : "text-foreground"}`}>{item.quantity}</span>
-                <button onClick={() => openAdjust(item)} className="p-2 text-muted-foreground hover:text-primary">
-                  <ArrowDownUp className="w-4 h-4" />
-                </button>
-                <button onClick={() => openHistory(item)} className="text-xs text-muted-foreground hover:text-foreground underline">Log</button>
-              </div>
+
+              {/* Serial/Batch viewer */}
+              {isExpanded && (
+                <div className="border-t border-border px-3 py-2 space-y-1 max-h-48 overflow-y-auto">
+                  {serialItems.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-2">No tracked items</p>
+                  ) : (
+                    serialItems.map(si => (
+                      <div key={si.id} className="flex justify-between items-center text-xs py-1">
+                        <div className="flex items-center gap-2">
+                          {si.serial_number ? (
+                            <><Hash className="w-3 h-3 text-muted-foreground" /><span className="font-mono">{si.serial_number}</span></>
+                          ) : (
+                            <><Package className="w-3 h-3 text-muted-foreground" /><span>{si.batch_number}</span></>
+                          )}
+                          {si.expiry_date && <span className="text-muted-foreground">exp {si.expiry_date}</span>}
+                        </div>
+                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                          si.status === "in_stock" ? "bg-primary/15 text-primary" :
+                          si.status === "sold" ? "bg-muted text-muted-foreground" :
+                          "bg-destructive/15 text-destructive"
+                        }`}>{si.status.replace("_", " ")}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
         {filtered.length === 0 && <p className="text-center text-muted-foreground text-sm py-8">No products</p>}
       </div>
 
+      {/* Adjust Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-card border-border max-w-sm">
+        <DialogContent className="bg-card border-border max-w-sm max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Adjust: {selectedProduct?.product_name}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <Select value={adjType} onValueChange={setAdjType}>
@@ -136,7 +316,71 @@ export default function Stock() {
                 <SelectItem value="theft">Theft (-)</SelectItem>
               </SelectContent>
             </Select>
-            <Input className="input-dark" type="number" placeholder="Quantity" value={adjQty} onChange={e => setAdjQty(e.target.value)} />
+
+            {/* Serial restock */}
+            {adjType === "restock" && selectedProduct?.tracking_type === "serial" && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Enter serial numbers (one per line)</p>
+                <Textarea
+                  className="input-dark font-mono text-xs"
+                  placeholder={"SN-001\nSN-002\nSN-003"}
+                  value={serialNumbers}
+                  onChange={e => setSerialNumbers(e.target.value)}
+                  rows={5}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {serialNumbers.split("\n").filter(s => s.trim()).length} serial(s) entered
+                </p>
+              </div>
+            )}
+
+            {/* Batch restock */}
+            {adjType === "restock" && selectedProduct?.tracking_type === "batch" && (
+              <div className="space-y-2">
+                <Input className="input-dark" placeholder="Batch / Lot number" value={batchNumber} onChange={e => setBatchNumber(e.target.value)} />
+                <Input className="input-dark" type="date" placeholder="Expiry date (optional)" value={batchExpiry} onChange={e => setBatchExpiry(e.target.value)} />
+                <Input className="input-dark" type="number" placeholder="Quantity" value={adjQty} onChange={e => setAdjQty(e.target.value)} />
+              </div>
+            )}
+
+            {/* Non-tracked or correction qty */}
+            {(selectedProduct?.tracking_type === "none" || adjType === "correction") && (
+              <Input className="input-dark" type="number" placeholder="Quantity" value={adjQty} onChange={e => setAdjQty(e.target.value)} />
+            )}
+
+            {/* Spoilage/theft on tracked products: select which serials */}
+            {["spoilage", "theft"].includes(adjType) && selectedProduct?.tracking_type !== "none" && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Select items to mark as {adjType}:</p>
+                <div className="max-h-40 overflow-y-auto space-y-1 border border-border rounded-lg p-2">
+                  {inStockSerials.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-2">No in-stock items</p>
+                  ) : inStockSerials.map(si => (
+                    <label key={si.id} className="flex items-center gap-2 text-xs cursor-pointer py-1 hover:bg-muted/30 px-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={damageSerials.includes(si.id)}
+                        onChange={e => {
+                          setDamageSerials(prev =>
+                            e.target.checked ? [...prev, si.id] : prev.filter(id => id !== si.id)
+                          );
+                        }}
+                        className="rounded"
+                      />
+                      <span className="font-mono">{si.serial_number || si.batch_number}</span>
+                      {si.expiry_date && <span className="text-muted-foreground">exp {si.expiry_date}</span>}
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">{damageSerials.length} selected</p>
+              </div>
+            )}
+
+            {/* Non-tracked spoilage/theft qty */}
+            {["spoilage", "theft"].includes(adjType) && selectedProduct?.tracking_type === "none" && (
+              <Input className="input-dark" type="number" placeholder="Quantity" value={adjQty} onChange={e => setAdjQty(e.target.value)} />
+            )}
+
             <Textarea className="input-dark" placeholder="Note (optional)" value={adjNote} onChange={e => setAdjNote(e.target.value)} />
             <Button className="w-full" onClick={saveAdj}>Save Adjustment</Button>
           </div>
