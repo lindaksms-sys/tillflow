@@ -326,8 +326,34 @@ export default function Sales() {
       }
     }
 
-    // Deduct stock
+    // Deduct stock and mark serial items as sold
     for (const c of cart) {
+      const trackingType = (c.product as any).tracking_type || "none";
+
+      if (trackingType === "serial") {
+        // Mark allocated serials as sold
+        const allocatedIds = cartSerialMap.get(c.product.id) || [];
+        for (const sid of allocatedIds) {
+          await supabase.from("serial_items").update({
+            status: "sold", sale_id: sale.id, sold_at: new Date().toISOString(),
+          } as any).eq("id", sid);
+        }
+      } else if (trackingType === "batch") {
+        // FIFO: pick oldest in-stock batch items
+        const { data: batchItems } = await supabase
+          .from("serial_items")
+          .select("id")
+          .eq("product_id", c.product.id)
+          .eq("status", "in_stock")
+          .order("received_at", { ascending: true })
+          .limit(c.quantity);
+        for (const bi of batchItems || []) {
+          await supabase.from("serial_items").update({
+            status: "sold", sale_id: sale.id, sold_at: new Date().toISOString(),
+          } as any).eq("id", (bi as any).id);
+        }
+      }
+
       const { data: sl } = await supabase.from("stock_levels").select("quantity").eq("product_id", c.product.id).single();
       if (sl) {
         await supabase.from("stock_levels").update({
@@ -342,6 +368,7 @@ export default function Sales() {
     setReceiptSale({ ...sale, sale_items: items.map((item, i) => ({ ...item, products: cart[i].product })) });
 
     setCart([]);
+    setCartSerialMap(new Map());
     setSelectedCreditCustomer(null);
     setCreditSearch("");
     loadHistory();
