@@ -63,6 +63,13 @@ export default function Sales() {
   const [showManualSku, setShowManualSku] = useState(false);
   const [dateFilter, setDateFilter] = useState("");
 
+  // Serial selection state
+  const [serialDialog, setSerialDialog] = useState<Product | null>(null);
+  const [availableSerials, setAvailableSerials] = useState<SerialItem[]>([]);
+  const [selectedSerials, setSelectedSerials] = useState<string[]>([]);
+  // Track which serial_item IDs are allocated per cart product
+  const [cartSerialMap, setCartSerialMap] = useState<Map<string, string[]>>(new Map());
+
   // Receipt modal
   const [receiptSale, setReceiptSale] = useState<any | null>(null);
 
