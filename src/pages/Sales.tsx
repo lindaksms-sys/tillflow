@@ -684,6 +684,38 @@ export default function Sales() {
         onClose={() => setReceiptSale(null)}
         sale={receiptSale}
       />
+
+      {/* Serial number selection dialog */}
+      <Dialog open={serialDialog !== null} onOpenChange={() => setSerialDialog(null)}>
+        <DialogContent className="bg-card border-border max-w-sm max-h-[70vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Select Serial Numbers — {serialDialog?.name}</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">{availableSerials.length} available. Select which to sell:</p>
+            <div className="max-h-52 overflow-y-auto space-y-1 border border-border rounded-lg p-2">
+              {availableSerials.map(si => (
+                <label key={si.id} className="flex items-center gap-2 text-xs cursor-pointer py-1.5 hover:bg-muted/30 px-2 rounded">
+                  <input
+                    type="checkbox"
+                    checked={selectedSerials.includes(si.id)}
+                    onChange={e => {
+                      setSelectedSerials(prev =>
+                        e.target.checked ? [...prev, si.id] : prev.filter(id => id !== si.id)
+                      );
+                    }}
+                    className="rounded"
+                  />
+                  <Hash className="w-3 h-3 text-muted-foreground" />
+                  <span className="font-mono">{si.serial_number}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">{selectedSerials.length} selected</p>
+            <Button className="w-full" disabled={selectedSerials.length === 0} onClick={confirmSerialSelection}>
+              Add {selectedSerials.length} to Cart
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
