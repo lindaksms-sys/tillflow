@@ -34,7 +34,7 @@ export default function Products() {
   const [showManualSku, setShowManualSku] = useState(false);
   const [form, setForm] = useState({
     name: "", sku: "", category: "General", cost_price: "", selling_price: "",
-    unit: "piece", reorder_threshold: "5", business_type: "retail"
+    unit: "piece", reorder_threshold: "5", business_type: "retail", tracking_type: "none"
   });
 
   // Promo state
@@ -50,10 +50,10 @@ export default function Products() {
     setPromotions(promos || []);
   };
 
-  const openNew = () => { setEditing(null); setForm({ name: "", sku: "", category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail" }); setDialogOpen(true); };
+  const openNew = () => { setEditing(null); setForm({ name: "", sku: "", category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail", tracking_type: "none" }); setDialogOpen(true); };
   const openEdit = (p: Product) => {
     setEditing(p);
-    setForm({ name: p.name, sku: p.sku || "", category: p.category, cost_price: String(p.cost_price), selling_price: String(p.selling_price), unit: p.unit, reorder_threshold: String(p.reorder_threshold), business_type: p.business_type });
+    setForm({ name: p.name, sku: p.sku || "", category: p.category, cost_price: String(p.cost_price), selling_price: String(p.selling_price), unit: p.unit, reorder_threshold: String(p.reorder_threshold), business_type: p.business_type, tracking_type: (p as any).tracking_type || "none" });
     setDialogOpen(true);
   };
 
@@ -63,7 +63,8 @@ export default function Products() {
       name: form.name, sku: form.sku || null, category: form.category,
       cost_price: Number(form.cost_price) || 0, selling_price: Number(form.selling_price) || 0,
       unit: form.unit, reorder_threshold: Number(form.reorder_threshold) || 5,
-      business_type: form.business_type, user_id: user.id, business_id: businessId,
+      business_type: form.business_type, tracking_type: form.tracking_type,
+      user_id: user.id, business_id: businessId,
     };
 
     if (editing) {
@@ -149,7 +150,7 @@ export default function Products() {
               toast.info(`Found: ${found.name}`);
             } else {
               setEditing(null);
-              setForm({ name: "", sku: code, category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail" });
+              setForm({ name: "", sku: code, category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail", tracking_type: "none" });
               setDialogOpen(true);
               toast.info(`SKU "${code}" not found — add new product`);
             }
@@ -188,7 +189,12 @@ export default function Products() {
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">{p.category} · {p.business_type} · ${Number(p.selling_price).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {p.category} · {p.business_type} · ${Number(p.selling_price).toFixed(2)}
+                    {(p as any).tracking_type && (p as any).tracking_type !== "none" && (
+                      <span className="ml-1 text-primary">· {(p as any).tracking_type === "serial" ? "Serial" : "Batch"}</span>
+                    )}
+                  </p>
                 </div>
                 <div className="flex gap-1 ml-2">
                   <button onClick={() => { setPromoDialog(p); setPromoForm({ label: "", bundle_qty: "", bundle_price: "" }); }} className="p-2 text-muted-foreground hover:text-foreground"><Tag className="w-4 h-4" /></button>
@@ -242,6 +248,14 @@ export default function Products() {
               </Select>
               <Input className="input-dark" type="number" placeholder="Reorder threshold" value={form.reorder_threshold} onChange={e => setForm({ ...form, reorder_threshold: e.target.value })} />
             </div>
+            <Select value={form.tracking_type} onValueChange={v => setForm({ ...form, tracking_type: v })}>
+              <SelectTrigger className="input-dark"><SelectValue placeholder="Tracking type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Tracking</SelectItem>
+                <SelectItem value="serial">Serial Numbers (per unit)</SelectItem>
+                <SelectItem value="batch">Batch / Lot Numbers</SelectItem>
+              </SelectContent>
+            </Select>
             <Button className="w-full" onClick={save}>Save</Button>
           </div>
         </DialogContent>
@@ -286,7 +300,7 @@ export default function Products() {
             toast.info(`Found: ${found.name}`);
           } else {
             setEditing(null);
-            setForm({ name: "", sku: code, category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail" });
+            setForm({ name: "", sku: code, category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail", tracking_type: "none" });
             setDialogOpen(true);
             toast.info(`SKU "${code}" not found — add new product`);
           }

@@ -10,10 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Minus, ShoppingCart, X, CreditCard, Banknote, Smartphone, RotateCcw, ScanLine, Keyboard, Tag, UserCheck, AlertTriangle, Receipt } from "lucide-react";
+import { Search, Plus, Minus, ShoppingCart, X, CreditCard, Banknote, Smartphone, RotateCcw, ScanLine, Keyboard, Tag, UserCheck, AlertTriangle, Receipt, Hash } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import type { Product, CartItem, Promotion } from "@/lib/supabase-helpers";
+import type { Product, CartItem, Promotion, SerialItem } from "@/lib/supabase-helpers";
 import BarcodeScanner from "@/components/BarcodeScanner";
 import ReceiptModal from "@/components/ReceiptModal";
 
@@ -62,6 +62,13 @@ export default function Sales() {
   const [manualSku, setManualSku] = useState("");
   const [showManualSku, setShowManualSku] = useState(false);
   const [dateFilter, setDateFilter] = useState("");
+
+  // Serial selection state
+  const [serialDialog, setSerialDialog] = useState<Product | null>(null);
+  const [availableSerials, setAvailableSerials] = useState<SerialItem[]>([]);
+  const [selectedSerials, setSelectedSerials] = useState<string[]>([]);
+  // Track which serial_item IDs are allocated per cart product
+  const [cartSerialMap, setCartSerialMap] = useState<Map<string, string[]>>(new Map());
 
   // Receipt modal
   const [receiptSale, setReceiptSale] = useState<any | null>(null);
@@ -159,7 +166,47 @@ export default function Sales() {
     return promotions.find(p => p.product_id === productId) || null;
   };
 
-  const addToCart = (p: Product) => {
+  const addToCart = async (p: Product) => {
+    const trackingType = (p as any).tracking_type || "none";
+
+    if (trackingType === "serial") {
+      // Open serial selection dialog
+      const { data } = await supabase
+        .from("serial_items")
+        .select("*")
+        .eq("product_id", p.id)
+        .eq("status", "in_stock")
+        .order("received_at", { ascending: true });
+      const available = (data as any[]) || [];
+      // Exclude already-allocated serials
+      const alreadyAllocated = cartSerialMap.get(p.id) || [];
+      const filtered = available.filter(s => !alreadyAllocated.includes(s.id));
+      if (filtered.length === 0) {
+        toast.error("No serial numbers available in stock");
+        return;
+      }
+      setAvailableSerials(filtered);
+      setSelectedSerials([]);
+      setSerialDialog(p);
+      return;
+    }
+
+    if (trackingType === "batch") {
+      // Auto-pick FIFO: just add to cart, we'll resolve batches at sale time
+      const promo = getActivePromo(p.id);
+      setCart(prev => {
+        const idx = prev.findIndex(c => c.product.id === p.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
+          return next;
+        }
+        return [...prev, { product: p, quantity: 1, discount: 0, usePromo: !!promo, promo }];
+      });
+      return;
+    }
+
+    // Non-tracked: normal add
     const promo = getActivePromo(p.id);
     setCart(prev => {
       const idx = prev.findIndex(c => c.product.id === p.id);
@@ -170,6 +217,33 @@ export default function Sales() {
       }
       return [...prev, { product: p, quantity: 1, discount: 0, usePromo: !!promo, promo }];
     });
+  };
+
+  const confirmSerialSelection = () => {
+    if (!serialDialog || selectedSerials.length === 0) return;
+    const promo = getActivePromo(serialDialog.id);
+    const qty = selectedSerials.length;
+
+    setCart(prev => {
+      const idx = prev.findIndex(c => c.product.id === serialDialog.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], quantity: next[idx].quantity + qty };
+        return next;
+      }
+      return [...prev, { product: serialDialog, quantity: qty, discount: 0, usePromo: !!promo, promo }];
+    });
+
+    // Track allocated serials
+    setCartSerialMap(prev => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(serialDialog.id) || [];
+      newMap.set(serialDialog.id, [...existing, ...selectedSerials]);
+      return newMap;
+    });
+
+    setSerialDialog(null);
+    setSelectedSerials([]);
   };
 
   const updateQty = (idx: number, delta: number) => {
@@ -188,7 +262,18 @@ export default function Sales() {
     });
   };
 
-  const removeFromCart = (idx: number) => setCart(prev => prev.filter((_, i) => i !== idx));
+  const removeFromCart = (idx: number) => {
+    const item = cart[idx];
+    setCart(prev => prev.filter((_, i) => i !== idx));
+    // Clear allocated serials for this product
+    if ((item?.product as any)?.tracking_type === "serial") {
+      setCartSerialMap(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(item.product.id);
+        return newMap;
+      });
+    }
+  };
 
   const applyDiscount = () => {
     if (discountDialog === null) return;
@@ -252,8 +337,34 @@ export default function Sales() {
       }
     }
 
-    // Deduct stock
+    // Deduct stock and mark serial items as sold
     for (const c of cart) {
+      const trackingType = (c.product as any).tracking_type || "none";
+
+      if (trackingType === "serial") {
+        // Mark allocated serials as sold
+        const allocatedIds = cartSerialMap.get(c.product.id) || [];
+        for (const sid of allocatedIds) {
+          await supabase.from("serial_items").update({
+            status: "sold", sale_id: sale.id, sold_at: new Date().toISOString(),
+          } as any).eq("id", sid);
+        }
+      } else if (trackingType === "batch") {
+        // FIFO: pick oldest in-stock batch items
+        const { data: batchItems } = await supabase
+          .from("serial_items")
+          .select("id")
+          .eq("product_id", c.product.id)
+          .eq("status", "in_stock")
+          .order("received_at", { ascending: true })
+          .limit(c.quantity);
+        for (const bi of batchItems || []) {
+          await supabase.from("serial_items").update({
+            status: "sold", sale_id: sale.id, sold_at: new Date().toISOString(),
+          } as any).eq("id", (bi as any).id);
+        }
+      }
+
       const { data: sl } = await supabase.from("stock_levels").select("quantity").eq("product_id", c.product.id).single();
       if (sl) {
         await supabase.from("stock_levels").update({
@@ -268,6 +379,7 @@ export default function Sales() {
     setReceiptSale({ ...sale, sale_items: items.map((item, i) => ({ ...item, products: cart[i].product })) });
 
     setCart([]);
+    setCartSerialMap(new Map());
     setSelectedCreditCustomer(null);
     setCreditSearch("");
     loadHistory();
@@ -583,6 +695,38 @@ export default function Sales() {
         onClose={() => setReceiptSale(null)}
         sale={receiptSale}
       />
+
+      {/* Serial number selection dialog */}
+      <Dialog open={serialDialog !== null} onOpenChange={() => setSerialDialog(null)}>
+        <DialogContent className="bg-card border-border max-w-sm max-h-[70vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Select Serial Numbers — {serialDialog?.name}</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">{availableSerials.length} available. Select which to sell:</p>
+            <div className="max-h-52 overflow-y-auto space-y-1 border border-border rounded-lg p-2">
+              {availableSerials.map(si => (
+                <label key={si.id} className="flex items-center gap-2 text-xs cursor-pointer py-1.5 hover:bg-muted/30 px-2 rounded">
+                  <input
+                    type="checkbox"
+                    checked={selectedSerials.includes(si.id)}
+                    onChange={e => {
+                      setSelectedSerials(prev =>
+                        e.target.checked ? [...prev, si.id] : prev.filter(id => id !== si.id)
+                      );
+                    }}
+                    className="rounded"
+                  />
+                  <Hash className="w-3 h-3 text-muted-foreground" />
+                  <span className="font-mono">{si.serial_number}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">{selectedSerials.length} selected</p>
+            <Button className="w-full" disabled={selectedSerials.length === 0} onClick={confirmSerialSelection}>
+              Add {selectedSerials.length} to Cart
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

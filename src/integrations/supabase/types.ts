@@ -409,6 +409,7 @@ export type Database = {
           reorder_threshold: number
           selling_price: number
           sku: string | null
+          tracking_type: string
           unit: string
           user_id: string
         }
@@ -423,6 +424,7 @@ export type Database = {
           reorder_threshold?: number
           selling_price?: number
           sku?: string | null
+          tracking_type?: string
           unit?: string
           user_id: string
         }
@@ -437,6 +439,7 @@ export type Database = {
           reorder_threshold?: number
           selling_price?: number
           sku?: string | null
+          tracking_type?: string
           unit?: string
           user_id?: string
         }
@@ -592,6 +595,70 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      serial_items: {
+        Row: {
+          batch_number: string | null
+          business_id: string
+          expiry_date: string | null
+          id: string
+          note: string | null
+          product_id: string
+          received_at: string | null
+          sale_id: string | null
+          serial_number: string | null
+          sold_at: string | null
+          status: string
+        }
+        Insert: {
+          batch_number?: string | null
+          business_id: string
+          expiry_date?: string | null
+          id?: string
+          note?: string | null
+          product_id: string
+          received_at?: string | null
+          sale_id?: string | null
+          serial_number?: string | null
+          sold_at?: string | null
+          status?: string
+        }
+        Update: {
+          batch_number?: string | null
+          business_id?: string
+          expiry_date?: string | null
+          id?: string
+          note?: string | null
+          product_id?: string
+          received_at?: string | null
+          sale_id?: string | null
+          serial_number?: string | null
+          sold_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "serial_items_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "serial_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "serial_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
             referencedColumns: ["id"]
           },
         ]
