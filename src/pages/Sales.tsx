@@ -262,7 +262,18 @@ export default function Sales() {
     });
   };
 
-  const removeFromCart = (idx: number) => setCart(prev => prev.filter((_, i) => i !== idx));
+  const removeFromCart = (idx: number) => {
+    const item = cart[idx];
+    setCart(prev => prev.filter((_, i) => i !== idx));
+    // Clear allocated serials for this product
+    if ((item?.product as any)?.tracking_type === "serial") {
+      setCartSerialMap(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(item.product.id);
+        return newMap;
+      });
+    }
+  };
 
   const applyDiscount = () => {
     if (discountDialog === null) return;
