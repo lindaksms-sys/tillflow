@@ -34,7 +34,7 @@ export default function Products() {
   const [showManualSku, setShowManualSku] = useState(false);
   const [form, setForm] = useState({
     name: "", sku: "", category: "General", cost_price: "", selling_price: "",
-    unit: "piece", reorder_threshold: "5", business_type: "retail"
+    unit: "piece", reorder_threshold: "5", business_type: "retail", tracking_type: "none"
   });
 
   // Promo state

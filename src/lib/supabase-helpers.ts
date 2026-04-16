@@ -12,7 +12,22 @@ export type Product = {
   unit: string;
   reorder_threshold: number;
   business_type: string;
+  tracking_type: string; // 'none' | 'serial' | 'batch'
   created_at: string;
+};
+
+export type SerialItem = {
+  id: string;
+  business_id: string;
+  product_id: string;
+  serial_number: string | null;
+  batch_number: string | null;
+  expiry_date: string | null;
+  status: string; // 'in_stock' | 'sold' | 'damaged' | 'returned'
+  sale_id: string | null;
+  received_at: string;
+  sold_at: string | null;
+  note: string | null;
 };
 
 export type StockLevel = {
