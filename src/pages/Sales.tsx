@@ -10,10 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Minus, ShoppingCart, X, CreditCard, Banknote, Smartphone, RotateCcw, ScanLine, Keyboard, Tag, UserCheck, AlertTriangle, Receipt } from "lucide-react";
+import { Search, Plus, Minus, ShoppingCart, X, CreditCard, Banknote, Smartphone, RotateCcw, ScanLine, Keyboard, Tag, UserCheck, AlertTriangle, Receipt, Hash } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import type { Product, CartItem, Promotion } from "@/lib/supabase-helpers";
+import type { Product, CartItem, Promotion, SerialItem } from "@/lib/supabase-helpers";
 import BarcodeScanner from "@/components/BarcodeScanner";
 import ReceiptModal from "@/components/ReceiptModal";
 
