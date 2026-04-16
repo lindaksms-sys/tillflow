@@ -189,7 +189,12 @@ export default function Products() {
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">{p.category} · {p.business_type} · ${Number(p.selling_price).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {p.category} · {p.business_type} · ${Number(p.selling_price).toFixed(2)}
+                    {(p as any).tracking_type && (p as any).tracking_type !== "none" && (
+                      <span className="ml-1 text-primary">· {(p as any).tracking_type === "serial" ? "Serial" : "Batch"}</span>
+                    )}
+                  </p>
                 </div>
                 <div className="flex gap-1 ml-2">
                   <button onClick={() => { setPromoDialog(p); setPromoForm({ label: "", bundle_qty: "", bundle_price: "" }); }} className="p-2 text-muted-foreground hover:text-foreground"><Tag className="w-4 h-4" /></button>
@@ -243,6 +248,14 @@ export default function Products() {
               </Select>
               <Input className="input-dark" type="number" placeholder="Reorder threshold" value={form.reorder_threshold} onChange={e => setForm({ ...form, reorder_threshold: e.target.value })} />
             </div>
+            <Select value={form.tracking_type} onValueChange={v => setForm({ ...form, tracking_type: v })}>
+              <SelectTrigger className="input-dark"><SelectValue placeholder="Tracking type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Tracking</SelectItem>
+                <SelectItem value="serial">Serial Numbers (per unit)</SelectItem>
+                <SelectItem value="batch">Batch / Lot Numbers</SelectItem>
+              </SelectContent>
+            </Select>
             <Button className="w-full" onClick={save}>Save</Button>
           </div>
         </DialogContent>
