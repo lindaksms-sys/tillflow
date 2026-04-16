@@ -50,10 +50,10 @@ export default function Products() {
     setPromotions(promos || []);
   };
 
-  const openNew = () => { setEditing(null); setForm({ name: "", sku: "", category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail" }); setDialogOpen(true); };
+  const openNew = () => { setEditing(null); setForm({ name: "", sku: "", category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail", tracking_type: "none" }); setDialogOpen(true); };
   const openEdit = (p: Product) => {
     setEditing(p);
-    setForm({ name: p.name, sku: p.sku || "", category: p.category, cost_price: String(p.cost_price), selling_price: String(p.selling_price), unit: p.unit, reorder_threshold: String(p.reorder_threshold), business_type: p.business_type });
+    setForm({ name: p.name, sku: p.sku || "", category: p.category, cost_price: String(p.cost_price), selling_price: String(p.selling_price), unit: p.unit, reorder_threshold: String(p.reorder_threshold), business_type: p.business_type, tracking_type: (p as any).tracking_type || "none" });
     setDialogOpen(true);
   };
 
@@ -63,7 +63,8 @@ export default function Products() {
       name: form.name, sku: form.sku || null, category: form.category,
       cost_price: Number(form.cost_price) || 0, selling_price: Number(form.selling_price) || 0,
       unit: form.unit, reorder_threshold: Number(form.reorder_threshold) || 5,
-      business_type: form.business_type, user_id: user.id, business_id: businessId,
+      business_type: form.business_type, tracking_type: form.tracking_type,
+      user_id: user.id, business_id: businessId,
     };
 
     if (editing) {
@@ -149,7 +150,7 @@ export default function Products() {
               toast.info(`Found: ${found.name}`);
             } else {
               setEditing(null);
-              setForm({ name: "", sku: code, category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail" });
+              setForm({ name: "", sku: code, category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail", tracking_type: "none" });
               setDialogOpen(true);
               toast.info(`SKU "${code}" not found — add new product`);
             }
@@ -286,7 +287,7 @@ export default function Products() {
             toast.info(`Found: ${found.name}`);
           } else {
             setEditing(null);
-            setForm({ name: "", sku: code, category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail" });
+            setForm({ name: "", sku: code, category: "General", cost_price: "", selling_price: "", unit: "piece", reorder_threshold: "5", business_type: "retail", tracking_type: "none" });
             setDialogOpen(true);
             toast.info(`SKU "${code}" not found — add new product`);
           }
