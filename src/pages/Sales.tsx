@@ -166,7 +166,47 @@ export default function Sales() {
     return promotions.find(p => p.product_id === productId) || null;
   };
 
-  const addToCart = (p: Product) => {
+  const addToCart = async (p: Product) => {
+    const trackingType = (p as any).tracking_type || "none";
+
+    if (trackingType === "serial") {
+      // Open serial selection dialog
+      const { data } = await supabase
+        .from("serial_items")
+        .select("*")
+        .eq("product_id", p.id)
+        .eq("status", "in_stock")
+        .order("received_at", { ascending: true });
+      const available = (data as any[]) || [];
+      // Exclude already-allocated serials
+      const alreadyAllocated = cartSerialMap.get(p.id) || [];
+      const filtered = available.filter(s => !alreadyAllocated.includes(s.id));
+      if (filtered.length === 0) {
+        toast.error("No serial numbers available in stock");
+        return;
+      }
+      setAvailableSerials(filtered);
+      setSelectedSerials([]);
+      setSerialDialog(p);
+      return;
+    }
+
+    if (trackingType === "batch") {
+      // Auto-pick FIFO: just add to cart, we'll resolve batches at sale time
+      const promo = getActivePromo(p.id);
+      setCart(prev => {
+        const idx = prev.findIndex(c => c.product.id === p.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
+          return next;
+        }
+        return [...prev, { product: p, quantity: 1, discount: 0, usePromo: !!promo, promo }];
+      });
+      return;
+    }
+
+    // Non-tracked: normal add
     const promo = getActivePromo(p.id);
     setCart(prev => {
       const idx = prev.findIndex(c => c.product.id === p.id);
@@ -177,6 +217,33 @@ export default function Sales() {
       }
       return [...prev, { product: p, quantity: 1, discount: 0, usePromo: !!promo, promo }];
     });
+  };
+
+  const confirmSerialSelection = () => {
+    if (!serialDialog || selectedSerials.length === 0) return;
+    const promo = getActivePromo(serialDialog.id);
+    const qty = selectedSerials.length;
+
+    setCart(prev => {
+      const idx = prev.findIndex(c => c.product.id === serialDialog.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], quantity: next[idx].quantity + qty };
+        return next;
+      }
+      return [...prev, { product: serialDialog, quantity: qty, discount: 0, usePromo: !!promo, promo }];
+    });
+
+    // Track allocated serials
+    setCartSerialMap(prev => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(serialDialog.id) || [];
+      newMap.set(serialDialog.id, [...existing, ...selectedSerials]);
+      return newMap;
+    });
+
+    setSerialDialog(null);
+    setSelectedSerials([]);
   };
 
   const updateQty = (idx: number, delta: number) => {
