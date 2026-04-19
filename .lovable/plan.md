@@ -1,25 +1,10 @@
 
-Add Google Sign-In to the login page using Lovable Cloud's managed OAuth (no API keys needed).
+You currently have **$1 free monthly AI balance** included with Lovable Cloud (until early 2026). This project already uses AI for receipt scanning (`scan-receipt` edge function with Gemini 2.5 Flash) via the Lovable AI Gateway — no API key needed.
 
-## Plan
+**Google Sign-In does NOT use AI credits.** OAuth is handled by Lovable Cloud's auth service, completely separate from AI usage.
 
-**1. Configure Social Login**
-Run the Configure Social Login tool for Google. This installs `@lovable.dev/cloud-auth-js` and generates `src/integrations/lovable/index.ts` (already present in the project).
+### Where to check your AI balance
+Settings → Cloud & AI balance (paid plans can top up; Free plan cannot add funds).
 
-**2. Update `src/pages/Login.tsx`**
-- Add a "Continue with Google" button below the email/password form, separated by a divider ("or")
-- On click, call `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })`
-- Handle `result.error` (show error message) and `result.redirected` (return — browser handles redirect)
-- Style the button with the Google logo and outline variant to match the dark glassmorphism theme
-
-**3. Existing flow handles the rest**
-- After Google redirects back, `useAuth`'s `onAuthStateChange` listener picks up the session
-- New users with no `business_id` are routed to `Onboarding` automatically
-- Returning users land on Dashboard
-
-## Files Changed
-| File | Action |
-|------|--------|
-| `src/pages/Login.tsx` | Add Google button + divider + handler |
-
-No database changes, no new secrets — Lovable Cloud manages Google OAuth credentials by default.
+### Plan
+No code changes needed — this is informational. If Google sign-in is still failing on the live URL, the issue is OAuth configuration (redirect URI / provider setup), not AI credits. To debug that, I'd need the actual error message or screenshot from the published site.
