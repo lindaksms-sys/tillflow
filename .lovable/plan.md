@@ -1,58 +1,25 @@
 
-User wants step-by-step Cloudflare CNAME instructions. This is a how-to guide, not a code change. Keep concise.
+## Reality check
 
-## Adding the CNAME for `tillflow.creativehauz.space` in Cloudflare
+Your screenshot shows the domain points to a **Cloudflare Pages** project (`tillflow.pages.dev`) deployed from your GitHub repo `lindaksms-sys/tillflow`. It is NOT served by Lovable hosting. Lovable's managed OAuth (`/~oauth/initiate` → `oauth.lovable.app`) only works when traffic actually reaches Lovable's edge. On Cloudflare Pages, that path 404s into the SPA fallback → blank screen.
 
-### Step 1 — Get the CNAME target from Lovable
-1. In Lovable: **Project Settings → Domains**.
-2. Remove `tillflow.creativehauz.space` if already added.
-3. Click **Connect Domain** → enter `tillflow.creativehauz.space`.
-4. Expand **Advanced** → check **"Domain uses Cloudflare or a similar proxy"**.
-5. Lovable shows a CNAME target (looks like `xxx.lovable.app` or similar) and a TXT verification record. **Keep this dialog open** — you'll need both values.
+So there is **no CNAME target from Lovable to give you** in this setup, because the domain is intentionally pointed at Cloudflare Pages, not Lovable.
 
-### Step 2 — Open Cloudflare DNS
-1. Log in to [dash.cloudflare.com](https://dash.cloudflare.com).
-2. Select the **creativehauz.space** zone.
-3. Left sidebar → **DNS → Records**.
+## You have two choices
 
-### Step 3 — Remove old conflicting records
-Find any existing record where **Name = `tillflow`** (A, AAAA, or CNAME). Click **Edit → Delete**. Only one record can exist per subdomain.
+### Option A — Host on Lovable (recommended, OAuth works out of the box)
+1. In Lovable: click **Publish** (top right). Confirms `tillflow.lovable.app` is live.
+2. Lovable → **Project Settings → Domains → Connect Domain** → `tillflow.creativehauz.space` → expand **Advanced** → check **"Domain uses Cloudflare or a similar proxy"**.
+3. Lovable will display a **CNAME target** (something like `xxxx.lovable.app`) and a **TXT verification** record. **That is your target value** — it only appears after step 2.
+4. In Cloudflare DNS for `creativehauz.space`:
+   - Delete the existing `tillflow` CNAME pointing to `tillflow.pages.dev`.
+   - Add CNAME: name `tillflow` → target = the value Lovable gave you, Proxy ON (orange).
+   - Add the TXT record Lovable gave you.
+5. (Optional) In **Cloudflare Pages → tillflow → Custom domains**, remove `tillflow.creativehauz.space` so it doesn't conflict.
+6. Wait for Lovable to show **Active**, retest Google sign-in.
 
-### Step 4 — Add the CNAME record
-Click **Add record**, then fill in:
+### Option B — Keep Cloudflare Pages hosting (Lovable managed OAuth will NOT work)
+Lovable's `/~oauth/*` proxy doesn't exist on Cloudflare Pages, so you'd need to use **direct Supabase OAuth** instead of the `lovable.auth.signInWithOAuth` wrapper, and configure your own Google OAuth credentials in the Cloud Auth settings with `tillflow.creativehauz.space` in the redirect allowlist. This is a code change.
 
-| Field | Value |
-|---|---|
-| Type | `CNAME` |
-| Name | `tillflow` (Cloudflare auto-appends `.creativehauz.space`) |
-| Target | *(paste the CNAME target Lovable gave you)* |
-| Proxy status | **Proxied** (orange cloud ON) |
-| TTL | Auto |
-
-Click **Save**.
-
-### Step 5 — Add the TXT verification record
-Click **Add record** again:
-
-| Field | Value |
-|---|---|
-| Type | `TXT` |
-| Name | `_lovable.tillflow` *(or whatever Lovable shows)* |
-| Content | *(paste the `lovable_verify=...` value)* |
-| TTL | Auto |
-
-Click **Save**.
-
-### Step 6 — Cloudflare SSL setting (important)
-Sidebar → **SSL/TLS → Overview** → set encryption mode to **Full** or **Full (strict)**. *Flexible* will break the site.
-
-### Step 7 — Verify in Lovable
-1. Return to the Lovable Domains dialog → click **Verify** / wait.
-2. Status progresses: Verifying → Setting up → **Active** (usually 5–30 min, can be up to 72h).
-
-### Step 8 — Test Google sign-in
-Once status is **Active**, open `https://tillflow.creativehauz.space`, click Sign in with Google. The `/~oauth/initiate` URL should now redirect to `oauth.lovable.app` and show the Google account picker.
-
-### If it still fails after Active
-- Cloudflare → **Caching → Configuration → Purge Everything**.
-- Cloudflare → **Rules → Cache Rules** → add: *If URI Path matches `/~oauth/*` → Bypass cache*.
+## Recommendation
+Go with **Option A**. It's settings-only and OAuth works immediately. Tell me which option you want and I'll proceed.
