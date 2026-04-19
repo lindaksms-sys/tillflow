@@ -1,25 +1,29 @@
 
-## Reality check
+## Root cause
+The error `Unsupported provider: missing OAuth secret` comes from Supabase Auth when Google is enabled but the **Client Secret** field is empty. This happens when:
+- Custom credentials toggle is ON but only Client ID was pasted (Secret missing/blank).
+- Or credentials were saved with trailing whitespace / partial paste.
 
-Your screenshot shows the domain points to a **Cloudflare Pages** project (`tillflow.pages.dev`) deployed from your GitHub repo `lindaksms-sys/tillflow`. It is NOT served by Lovable hosting. Lovable's managed OAuth (`/~oauth/initiate` → `oauth.lovable.app`) only works when traffic actually reaches Lovable's edge. On Cloudflare Pages, that path 404s into the SPA fallback → blank screen.
+## Fix (settings only — no code change)
 
-So there is **no CNAME target from Lovable to give you** in this setup, because the domain is intentionally pointed at Cloudflare Pages, not Lovable.
+You have two paths. Pick one.
 
-## You have two choices
+### Path 1 — Use Lovable's managed Google OAuth (easiest, recommended)
+1. Open **Lovable → Cloud → Users → Auth Settings → Sign In Methods → Google**.
+2. Toggle **"Use custom credentials"** OFF.
+3. Save. Lovable's managed Google credentials will be used automatically — works on `tillflow.lovable.app` AND your active custom domain `tillflow.creativehauz.space`.
+4. Retest sign-in.
 
-### Option A — Host on Lovable (recommended, OAuth works out of the box)
-1. In Lovable: click **Publish** (top right). Confirms `tillflow.lovable.app` is live.
-2. Lovable → **Project Settings → Domains → Connect Domain** → `tillflow.creativehauz.space` → expand **Advanced** → check **"Domain uses Cloudflare or a similar proxy"**.
-3. Lovable will display a **CNAME target** (something like `xxxx.lovable.app`) and a **TXT verification** record. **That is your target value** — it only appears after step 2.
-4. In Cloudflare DNS for `creativehauz.space`:
-   - Delete the existing `tillflow` CNAME pointing to `tillflow.pages.dev`.
-   - Add CNAME: name `tillflow` → target = the value Lovable gave you, Proxy ON (orange).
-   - Add the TXT record Lovable gave you.
-5. (Optional) In **Cloudflare Pages → tillflow → Custom domains**, remove `tillflow.creativehauz.space` so it doesn't conflict.
-6. Wait for Lovable to show **Active**, retest Google sign-in.
+### Path 2 — Keep your own Google credentials (BYOK)
+1. Open **Lovable → Cloud → Users → Auth Settings → Google**.
+2. Confirm **Client ID** is filled.
+3. Paste the **Client Secret** from Google Cloud Console → APIs & Services → Credentials → your OAuth Client → click the client → copy **Client Secret** (if you lost it, click **Reset Secret** and copy the new one).
+4. Make sure neither field has leading/trailing spaces.
+5. Save → retest.
 
-### Option B — Keep Cloudflare Pages hosting (Lovable managed OAuth will NOT work)
-Lovable's `/~oauth/*` proxy doesn't exist on Cloudflare Pages, so you'd need to use **direct Supabase OAuth** instead of the `lovable.auth.signInWithOAuth` wrapper, and configure your own Google OAuth credentials in the Cloud Auth settings with `tillflow.creativehauz.space` in the redirect allowlist. This is a code change.
+## Verification
+- `https://tillflow.creativehauz.space` → Continue with Google → Google account picker → signed in.
+- No `missing OAuth secret` error.
 
 ## Recommendation
-Go with **Option A**. It's settings-only and OAuth works immediately. Tell me which option you want and I'll proceed.
+Go with **Path 1** unless you specifically need branded Google credentials. The managed flow now works on your custom domain since you added it in Lovable.
