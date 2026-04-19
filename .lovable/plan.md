@@ -1,12 +1,25 @@
 
-The user sees a blank `/~oauth/initiate` URL on their custom domain `tillflow.creativehauz.space`. This means the Lovable OAuth proxy worker is not intercepting the path on that custom domain — it's hitting the SPA, which has no route for it, so nothing happens.
+The custom domain `tillflow.creativehauz.space` is on Cloudflare. The `/~oauth/initiate` URL hits the SPA instead of the Lovable proxy worker — meaning Cloudflare is serving the request itself (likely from cache or via its proxy) and never reaching Lovable's edge where the `/~oauth/*` path interception happens.
 
-Per Lovable docs: managed OAuth works on custom domains only when the domain is properly configured and **active** in Lovable settings. If the custom domain is inactive/misconfigured, the proxy worker won't intercept `/~oauth/initiate` and the OAuth flow breaks exactly like this.
+### Root cause
+When a custom domain is proxied through Cloudflare (orange cloud) without enabling Lovable's **Proxy Mode**, the OAuth proxy worker at `/~oauth/initiate` and `/~oauth/callback` is bypassed. Cloudflare strips/caches the request before Lovable can intercept it.
 
-The published URL is `tillflow.lovable.app`. The custom domain `tillflow.creativehauz.space` is referenced in `supabase/config.toml` and memory but is NOT listed as an active custom domain on the project (project_urls shows none).
+### Fix (no code changes — settings only)
 
-### Fix
-1. Test Google sign-in on `https://tillflow.lovable.app` — it should work there.
-2. To make it work on `tillflow.creativehauz.space`, reconnect/activate that domain in **Project Settings → Domains** in Lovable. Once it shows status **Active**, the `/~oauth/initiate` proxy will work automatically.
+1. **In Lovable** → Project Settings → Domains → remove `tillflow.creativehauz.space`, then re-add it via **Connect Domain**:
+   - Expand **Advanced**
+   - Check **"Domain uses Cloudflare or a similar proxy"**
+   - This switches setup from A-record to CNAME-based verification compatible with Cloudflare proxy.
 
-No code changes needed.
+2. **In Cloudflare DNS** → replace the existing A record with the CNAME Lovable provides. Keep the orange cloud (proxied) ON.
+
+3. **In Cloudflare → Rules / Page Rules / Cache** → ensure no rule caches `/~oauth/*`. Add a Cache Rule: bypass cache for URI path matches `/~oauth/*` if any aggressive caching is enabled.
+
+4. Wait until the domain shows **Active** in Lovable Domains, then retest Google sign-in on `https://tillflow.creativehauz.space`.
+
+### Verification
+- `https://tillflow.creativehauz.space/~oauth/initiate?...` should redirect to `oauth.lovable.app` (not show a blank SPA).
+- Google account picker appears → sign-in completes.
+
+### Alternative
+If you don't need the custom domain for OAuth specifically, keep using `https://tillflow.lovable.app` for sign-in — it works today.
