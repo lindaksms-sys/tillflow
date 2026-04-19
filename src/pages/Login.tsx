@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,15 +100,12 @@ export default function Login() {
               onClick={async () => {
                 setError("");
                 setLoading(true);
-                const { error } = await supabase.auth.signInWithOAuth({
-                  provider: "google",
-                  options: {
-                    redirectTo: window.location.origin,
-                    queryParams: { prompt: "select_account" },
-                  },
+                const result = await lovable.auth.signInWithOAuth("google", {
+                  redirect_uri: window.location.origin,
+                  extraParams: { prompt: "select_account" },
                 });
-                if (error) {
-                  setError(error.message || "Google sign-in failed");
+                if (result.error) {
+                  setError(result.error.message || "Google sign-in failed");
                   setLoading(false);
                 }
               }}
