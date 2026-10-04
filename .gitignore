@@ -22,3 +22,20 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local environment and credential files
+.env
+.env.*
+!.env.example
+!.env.*.example
+.dev.vars
+.dev.vars.*
+*.pem
+*.key
+
+# Local backend state and test output
+supabase/.temp/
+supabase/.branches/
+coverage/
+playwright-report/
+test-results/
